@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { DOOR_LOCAL_BOX, fitVehicle, rigForDoor } from './geometry';
+import { DOOR_LOCAL_BOX, doorParts, fitVehicle, rigForDoor } from './geometry';
+import { DOOR_PART_KEYS } from './doorPartKeys';
 
 // 앞이 -z, 왼쪽이 -x, 크기가 1/100인 가짜 차량 (실제 Tesla GLB와 같은 원본 축)
 function fakeCar() {
@@ -27,6 +28,22 @@ describe('fitVehicle', () => {
   });
 });
 
+describe('fitVehicle · 축 지정', () => {
+  it('부품 이름이 없는 모델도 앞(+z)·왼쪽(+x) 축을 주면 앞 +x, 왼쪽 -z로 맞춘다', () => {
+    // 앞이 +z, 왼쪽이 +x, mm 단위인 가짜 차량 (Model X GLB와 같은 원본 축)
+    const root = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(2000, 1600, 5000)); body.position.set(1000, 800, -1500); root.add(body);
+    const nose = new THREE.Mesh(new THREE.BoxGeometry(100, 100, 100)); nose.name = 'nose'; nose.position.set(1800, 500, 900); root.add(nose);
+    const wrap = fitVehicle(root, { length: 5.04, axes: { forward: '+z', left: '+x' } });
+    const box = new THREE.Box3().setFromObject(wrap);
+    expect(box.max.x - box.min.x).toBeCloseTo(5.04, 2);
+    expect(box.min.y).toBeCloseTo(0, 3);
+    const n = new THREE.Box3().setFromObject(wrap.getObjectByName('nose')!).getCenter(new THREE.Vector3());
+    expect(n.x).toBeGreaterThan(2); // 앞쪽 끝
+    expect(n.z).toBeLessThan(0); // 왼쪽
+  });
+});
+
 describe('rigForDoor', () => {
   it('가상 도어 상자를 실제 왼쪽 도어 상자에 맞춘다', () => {
     const door = new THREE.Box3(new THREE.Vector3(-1.2, 0.25, -0.99), new THREE.Vector3(-0.07, 1.3, -0.64));
@@ -41,5 +58,24 @@ describe('rigForDoor', () => {
   it('오른쪽 도어면 z를 뒤집는다', () => {
     const rig = rigForDoor(new THREE.Box3(new THREE.Vector3(-1.2, 0.25, 0.64), new THREE.Vector3(-0.07, 1.3, 0.99)));
     expect(rig.scale.z).toBe(-1);
+  });
+});
+
+describe('doorParts', () => {
+  const door = { min: [-1.1, 0.4, -0.95] as [number, number, number], max: [-0.15, 1.3, -0.75] as [number, number, number] };
+  it('도어 부품 6개가 모두 실제 도어 경계 상자 안에 들어간다', () => {
+    const parts = doorParts(door);
+    expect(parts.map(p => p.key).sort()).toEqual([...DOOR_PART_KEYS].sort());
+    for (const p of parts) {
+      const [x, y, z, sx, sy, sz] = p.box;
+      expect(x - sx / 2, p.key).toBeGreaterThanOrEqual(door.min[0] - 1e-9); expect(x + sx / 2, p.key).toBeLessThanOrEqual(door.max[0] + 1e-9);
+      expect(y - sy / 2, p.key).toBeGreaterThanOrEqual(door.min[1] - 1e-9); expect(y + sy / 2, p.key).toBeLessThanOrEqual(door.max[1] + 1e-9);
+      expect(z - sz / 2, p.key).toBeGreaterThanOrEqual(door.min[2] - 1e-9); expect(z + sz / 2, p.key).toBeLessThanOrEqual(door.max[2] + 1e-9);
+    }
+  });
+  it('트림과 글라스는 실제 도어 면을 칠하고, 래치는 도어 뒤쪽 끝에 있다', () => {
+    const parts = Object.fromEntries(doorParts(door).map(p => [p.key, p]));
+    expect(parts.trim.shape).toBe('surface'); expect(parts.glass.shape).toBe('surface');
+    expect(parts.latch.box[0]).toBeLessThan(door.min[0] + 0.2);
   });
 });

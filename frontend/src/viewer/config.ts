@@ -1,2 +1,6 @@
-/** 작업이 아직 없을 때(진단 전) 보여 줄 기본 차량 모델. Model X가 오면 차종별 설정으로 옮긴다 */
-export const DEFAULT_MODEL = { assetUrl: '/models/tesla-model3.glb', meshManifest: { door: 'door_lr', hubFrontLeft: 'hub_lf', hubRearLeft: 'hub_lb', hubFrontRight: 'hub_rf' } };
+import { MODEL3, MODELX } from '../mocks/cases/types';
+
+/** 차종별 3D 모델. 작업이 없을 때(진단 전)도 고른 차종의 차체를 보여 준다 */
+const MODELS: Record<string, { assetUrl: string; meshManifest: Record<string, string> }> = { 'Tesla Model 3': MODEL3, 'Tesla Model X': MODELX };
+export const DEFAULT_MODEL = MODEL3;
+export const modelFor = (vehicle?: string) => (vehicle && MODELS[vehicle]) || DEFAULT_MODEL;

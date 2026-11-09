@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMockApi } from '../api/mockApi';
-import { createRepairStore } from './useRepairStore';
+import { createRepairStore, recordDraft } from './useRepairStore';
 
 let store: ReturnType<typeof createRepairStore>;
 beforeEach(() => { store = createRepairStore(createMockApi({ delayMs: 0 })); });
@@ -103,5 +103,73 @@ describe('repair store · 기록과 이어하기', () => {
     expect(store.getState().history[0]).toMatchObject({ code: 'B1A24', status: 'done', minutes: 52 });
     await store.getState().pickCode('B1A24');
     expect(store.getState().job!.candidates[0].observedRaw.n).toBe(n0 + 1);
+  });
+});
+
+describe('repair store · 단계별 기록 (job_step_log·knowledge_entry)', () => {
+  afterEach(() => { vi.useRealTimers(); });
+  const start = async () => {
+    vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-11-10T09:00:00'));
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    await store.getState().startRepair(store.getState().job!.candidates[0].partId);
+  };
+
+  it('단계를 옮길 때마다 시작·끝 시각이 자동으로 남는다', async () => {
+    await start();
+    const s1 = store.getState().task!.steps[0].stepId;
+    vi.setSystemTime(new Date('2026-11-10T09:04:00'));
+    store.getState().next();
+    const log = store.getState().stepLog[s1];
+    expect(log.endedAt! - log.startedAt).toBe(4 * 60_000);
+    expect(store.getState().stepLog[store.getState().task!.steps[1].stepId].startedAt).toBeDefined();
+  });
+
+  it('지금 단계를 막힘으로 표시하고 이유를 남길 수 있다', async () => {
+    await start();
+    store.getState().markBlocked('부품 고착');
+    const id = store.getState().task!.steps[0].stepId;
+    expect(store.getState().stepLog[id]).toMatchObject({ blocked: true, reason: '부품 고착' });
+    store.getState().markBlocked(null);
+    expect(store.getState().stepLog[id].blocked).toBe(false);
+  });
+
+  it('지금 단계에 남긴 팁은 그 단계 팁 목록에 바로 보인다', async () => {
+    await start();
+    await store.getState().addTip('글라스 클립은 위에서 아래로 누르면 덜 깨집니다', true);
+    const id = store.getState().task!.steps[0].stepId;
+    expect(store.getState().myTips.filter(t => t.stepId === id)).toHaveLength(1);
+  });
+
+  it('결과 기록 초안은 측정한 시간 합과 막힌 단계(없으면 가장 오래 걸린 단계)를 채운다', async () => {
+    await start();
+    vi.setSystemTime(new Date('2026-11-10T09:03:00')); store.getState().next();
+    vi.setSystemTime(new Date('2026-11-10T09:15:00')); store.getState().next();
+    const st = store.getState();
+    const d = recordDraft(st, new Date('2026-11-10T09:20:00').getTime());
+    expect(d.minutes).toBe(20);
+    expect(d.stuckStepId).toBe(st.task!.steps[1].stepId);
+    store.getState().markBlocked('공구 접근 어려움');
+    expect(recordDraft(store.getState(), Date.now()).stuckStepId).toBe(st.task!.steps[2].stepId);
+  });
+});
+
+describe('repair store · 공식 순서대로 점검', () => {
+  it('점검했는데 원인이 아니면 그 후보를 지우고 다음 후보로 넘어간다', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    const [c1, c2] = store.getState().job!.candidates;
+    store.getState().ruleOut(c1.partId);
+    expect(store.getState().ruledOut).toContain(c1.partId);
+    expect(store.getState().job!.candidates[store.getState().selected].partId).toBe(c2.partId);
+    store.getState().ruleOut(c1.partId);
+    expect(store.getState().ruledOut).not.toContain(c1.partId);
+  });
+  it('다른 고장코드를 고르면 지운 후보 목록이 비워진다', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    store.getState().ruleOut(store.getState().job!.candidates[0].partId);
+    await store.getState().pickCode('B1C12');
+    expect(store.getState().ruledOut).toEqual([]);
   });
 });

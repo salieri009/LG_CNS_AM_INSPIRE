@@ -1,6 +1,6 @@
 import { createStore, useStore } from 'zustand';
 import { api as defaultApi } from '../api/mockApi';
-import type { CompletionRequest, RepairJob, RepairTask, RepairThreadApi, VehicleLookup } from '../api/types';
+import type { CompletionRequest, KnowledgeEntry, RepairJob, RepairTask, RepairThreadApi, StepLog, VehicleLookup } from '../api/types';
 import { HISTORY_SEED, VEHICLE_LIST } from '../mocks/seed';
 
 export type Mode = 'idle' | 'cands' | 'repair' | 'record';
@@ -21,6 +21,12 @@ interface State {
   liveId: string | null;
   error: string;
   notice: string;
+  /** 단계별 자동 측정·막힘 기록 (job_step_log) */
+  stepLog: Record<string, StepLog>;
+  /** 점검했지만 원인이 아니었던 후보 (공식 순서대로 하나씩 지워 간다) */
+  ruledOut: string[];
+  /** 이번 작업에서 내가 남긴 팁 */
+  myTips: KnowledgeEntry[];
 }
 interface Actions {
   lookup(vin: string): Promise<void>;
@@ -32,6 +38,9 @@ interface Actions {
   prev(): void;
   ackCurrentStep(): Promise<void>;
   openRecord(): void;
+  markBlocked(reason: string | null): void;
+  ruleOut(partId: string): void;
+  addTip(body: string, isPublic: boolean): Promise<void>;
   submitRecord(req: CompletionRequest): Promise<void>;
   resume(historyId: string): Promise<void>;
   backToCandidates(): void;
@@ -40,7 +49,7 @@ interface Actions {
   togglePanel(side: 'left' | 'right'): void;
 }
 
-const fresh = { job: null, task: null, mode: 'idle' as Mode, selected: 0, step: 0, acked: {}, liveId: null };
+const fresh = { job: null, task: null, mode: 'idle' as Mode, selected: 0, step: 0, acked: {}, liveId: null, stepLog: {} as Record<string, StepLog>, myTips: [] as KnowledgeEntry[], ruledOut: [] as string[] };
 const now = () => new Date().toTimeString().slice(0, 5);
 
 /** 다음 단계로 넘어갈 수 있는지. 고전압 확인이 필요한 단계는 확인 전에 지나갈 수 없다 (README A③) */
@@ -50,6 +59,16 @@ export const canLeave = (s: Pick<State, 'task' | 'step' | 'acked'>) => {
 };
 /** 이 작업의 고전압 확인 단계를 모두 확인했는지. 결과 기록은 이게 참일 때만 열린다 */
 export const hvCleared = (s: Pick<State, 'task' | 'acked'>) => !!s.task && s.task.steps.every(st => !st.requiresHvAck || !!s.acked[st.stepId]);
+/** 결과 기록 초안: 측정한 시간 합과, 막힌 단계(없으면 가장 오래 걸린 단계) */
+export function recordDraft(s: Pick<State, 'task' | 'stepLog'>, now: number): { minutes: number; stuckStepId: string | null } {
+  const logs = (s.task?.steps ?? []).map(st => s.stepLog[st.stepId]).filter((l): l is StepLog => !!l);
+  if (!logs.length) return { minutes: 0, stuckStepId: null };
+  const first = Math.min(...logs.map(l => l.startedAt));
+  const dur = (l: StepLog) => (l.endedAt ?? now) - l.startedAt;
+  const blocked = logs.filter(l => l.blocked).at(-1);
+  const longest = logs.reduce((a, b) => (dur(b) > dur(a) ? b : a));
+  return { minutes: Math.round((now - first) / 60_000), stuckStepId: (blocked ?? longest).stepId };
+}
 /** 좁은 화면(900px 미만)에서는 패널을 하나만 연다 */
 const narrow = () => typeof window !== 'undefined' && window.innerWidth < 900;
 
@@ -84,14 +103,20 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
           const task = await api.createTask(job.jobId, partId);
           const item: HistoryItem = { id: `h-${task.taskId}`, code: job.dtcCode, partId, time: now(), status: 'live', step: 0 };
           // 수리 중에는 3D와 매뉴얼에 자리를 주려고 왼쪽 패널을 접는다
-          set({ task, mode: 'repair', step: 0, acked: {}, liveId: item.id, panels: { ...get().panels, left: false }, history: [item, ...get().history.filter(h => h.id !== item.id)] });
+          set({ task, mode: 'repair', step: 0, acked: {}, liveId: item.id, myTips: [], stepLog: { [task.steps[0].stepId]: { stepId: task.steps[0].stepId, startedAt: Date.now(), blocked: false } }, panels: { ...get().panels, left: false }, history: [item, ...get().history.filter(h => h.id !== item.id)] });
         } catch (e) { set({ error: (e as Error).message }); }
       },
       goTo(step) {
         const s = get(); if (!s.task) return;
         if (step > s.step && !canLeave(s)) return;
         const n = Math.max(0, Math.min(s.task.steps.length - 1, step));
-        set({ step: n }); trackStep(n);
+        if (n === s.step) return;
+        // 떠나는 단계는 끝 시각을, 처음 들어가는 단계는 시작 시각을 자동으로 남긴다
+        const now = Date.now(), from = s.task.steps[s.step].stepId, to = s.task.steps[n].stepId;
+        const log = { ...s.stepLog };
+        if (log[from]) log[from] = { ...log[from], endedAt: now };
+        log[to] = log[to] ? { ...log[to], endedAt: undefined } : { stepId: to, startedAt: now, blocked: false };
+        set({ step: n, stepLog: log }); trackStep(n);
       },
       next() { get().goTo(get().step + 1); },
       prev() { get().goTo(get().step - 1); },
@@ -100,10 +125,28 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         await api.ackStep(s.task.taskId, st.stepId);
         set({ acked: { ...get().acked, [st.stepId]: true } });
       },
+      ruleOut(partId) {
+        const s = get(); if (!s.job) return;
+        // 이미 지운 후보를 다시 누르면 되살린다 (잘못 눌렀을 때)
+        if (s.ruledOut.includes(partId)) { set({ ruledOut: s.ruledOut.filter(x => x !== partId) }); return; }
+        const ruledOut = [...s.ruledOut, partId];
+        const next = s.job.candidates.findIndex(c => !ruledOut.includes(c.partId));
+        set({ ruledOut, selected: next >= 0 ? next : s.selected });
+      },
+      markBlocked(reason) {
+        const s = get(); const st = s.task?.steps[s.step]; if (!st) return;
+        const cur = s.stepLog[st.stepId] ?? { stepId: st.stepId, startedAt: Date.now(), blocked: false };
+        set({ stepLog: { ...s.stepLog, [st.stepId]: { ...cur, blocked: !!reason, reason: reason ?? undefined } } });
+      },
+      async addTip(body, isPublic) {
+        const s = get(); const st = s.task?.steps[s.step]; if (!st) return;
+        try { const k = await api.addKnowledge(st.stepId, body, isPublic); set({ myTips: [...get().myTips, k] }); }
+        catch (e) { set({ error: (e as Error).message }); }
+      },
       openRecord() { if (hvCleared(get())) set({ mode: 'record', panels: { ...get().panels, right: true } }); },
       async submitRecord(req) {
         const job = get().job; if (!job) return;
-        const res = await api.completeJob(job.jobId, req);
+        const res = await api.completeJob(job.jobId, { ...req, stepLogs: Object.values(get().stepLog) });
         const id = get().liveId;
         set({
           ...fresh,
@@ -121,7 +164,8 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         // 멈춘 단계 이전의 고전압 확인은 이미 했던 것으로 본다
         const acked = Object.fromEntries(t.steps.slice(0, h.step).map(st => [st.stepId, true]));
         const created = `h-${t.taskId}`;
-        set({ step: h.step, acked, liveId: h.id, history: get().history.filter(x => x.id === h.id || x.id !== created) });
+        const sid = t.steps[h.step].stepId;
+        set({ step: h.step, acked, liveId: h.id, stepLog: { [sid]: { stepId: sid, startedAt: Date.now(), blocked: false } }, history: get().history.filter(x => x.id === h.id || x.id !== created) });
       },
       backToCandidates() { set({ mode: 'cands', task: null, step: 0, acked: {}, liveId: null }); },
       backToRepair() { set({ mode: 'repair' }); },

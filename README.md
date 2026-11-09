@@ -3,7 +3,8 @@
 > LG CNS AM INSPIRE CAMP 6기 해커톤 · 5팀 팩토리 도메인 (2026-11-09 ~ 11-10)
 
 ![Hackathon](https://img.shields.io/badge/LG%20CNS%20AM%20INSPIRE-6%EA%B8%B0%20%ED%95%B4%EC%BB%A4%ED%86%A4-A50034)
-![Architecture](https://img.shields.io/badge/Architecture-MSA%205%20services-2563eb)
+![Architecture](https://img.shields.io/badge/Architecture-MSA-2563eb)
+![Kubernetes](https://img.shields.io/badge/Amazon%20EKS-Auto%20Mode-326CE5?logo=kubernetes&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-backend-6DB33F?logo=springboot&logoColor=white)
 ![No AI](https://img.shields.io/badge/AI%C2%B7LLM-%EC%97%86%EC%9D%8C%20(%EA%B7%9C%EC%B9%99%20%EA%B8%B0%EB%B0%98)-64748b)
 ![Status](https://img.shields.io/badge/status-%EA%B8%B0%ED%9A%8D%20%EC%99%84%EB%A3%8C-b45309)
@@ -105,6 +106,18 @@ flowchart TB
 - 진단·분석 서비스는 자체 DB 없이 다른 서비스를 호출 (분석은 정비 DB 집계 조회)
 - Spring Boot 계층: Controller → Application Service → Domain Service → Repository / External API Client
 
+## 배포 (AWS · EKS)
+
+![AWS 배포 구성도: CloudFront·S3, ALB·NAT, EKS Auto Mode 파드 11개, Aurora Serverless v2, CI/CD, 관리형 서비스](docs/images/aws-eks.png)
+
+- 배포 단위는 Deployment 11개: 위 서비스 5개에 auth·knowledge를 더 나누고, 웹앱 2개와 제조사 시스템 mock까지 파드로 올림 (D22)
+- 동시 접속이 적다는 전제로 평소엔 최소로 떠 있다가 몰릴 때만 늘어남
+  - 파드: HPA로 최소 1개부터 늘고 줄며, 공장 대시보드·분석·mock은 시연 시간에만 켜짐 (KEDA cron)
+  - 노드: EKS Auto Mode가 필요한 만큼 Spot 노드를 붙이고 빈 노드는 합침
+  - DB: Aurora Serverless v2가 놀 때 0 ACU로 일시정지
+- EKS 컨트롤 플레인·ALB·NAT는 사용량과 상관없이 과금돼서 시연 후 `terraform destroy`
+- 자세한 내용은 [EKS 배포 기획](docs/deployment-eks.md)
+
 ## 핵심 결정
 
 | 결정 | 이유 |
@@ -114,8 +127,9 @@ flowchart TB
 | 공정 정보 비공개 + 익명 집계 | 제조사가 데이터를 내놓을 수 있는 최소 안전장치 |
 | 관측 비율은 고장 발생률이 아님, 공식 순서는 유지 | 원인이 확인된 완료 건만 분모, 필수 공식 선행 순서는 바꾸지 않음 |
 | 시범 범위: 사양 1종 + 대표 고장코드 1개 | 해커톤에서 과장 없이 검증 가능한 범위 |
+| Kubernetes + 늘었다 줄었다 하는 구조 | 동시 접속이 적어서 평소엔 최소로 두고, 서비스는 나눠서 따로 배포·확장 |
 
-전체 결정 이력(D1~D21)은 [기획서 9장](docs/planning.md#9-의사결정-로그)에 있음.
+전체 결정 이력(D1~D22)은 [기획서 9장](docs/planning.md#9-의사결정-로그)에 있음.
 
 ## 문서
 
@@ -124,12 +138,16 @@ flowchart TB
 | [docs/planning.md](docs/planning.md) | 기획서 전체: 문제 정의, 근거, 페르소나, 벤치마킹, 기능 정의, 유스케이스, 화면, 정책, 결정 로그, 지표, Q&A, 개발용 다이어그램 |
 | [docs/api-spec.md](docs/api-spec.md) | API 명세 초안 7개와 관련 정책 |
 | [docs/data-dictionary.md](docs/data-dictionary.md) | 테이블 14개, 소유 서비스·저장소 |
+| [docs/test-plan.md](docs/test-plan.md) | 테스트케이스 53개 (P0 24개), 경계값 픽스처, 시연 리허설 순서 |
+| [docs/deployment-eks.md](docs/deployment-eks.md) | AWS·EKS 배포 기획: 서비스 분리, 탄력 설계, 매니페스트 예시, CI/CD, 비용·리스크 |
 | [docs/images/src/](docs/images/src) | 그림 원본: 구성도 스펙(JSON), 루프 다이어그램(Excalidraw) |
 
 ## 상태
 
 - [x] 기획 (문제 정의, 기능 정의, 유스케이스, 정책, 아키텍처)
 - [x] API 명세·데이터 사전 초안
+- [x] 테스트케이스 기획
+- [x] AWS·EKS 배포 기획
 - [ ] Acceptance Criteria
 - [ ] Repository 구조 · Git Branch 전략
 - [ ] 구현 (MVP 1순위부터)

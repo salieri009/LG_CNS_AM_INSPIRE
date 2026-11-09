@@ -44,6 +44,8 @@ PR 브랜치를 보려면 `git switch --track origin/fix/review-followups`처럼
 3. 절차가 준비된 후보를 선택해 3D 위치와 단계별 안내, 매뉴얼 그림을 확인합니다.
 4. 결과 기록 및 상단의 공장·설계 화면을 확인합니다.
 
+정비사 창과 공장 창을 나란히 띄우면 기록 한 건이 공장 창에 새로고침 없이 반영됩니다. 동작 구조는 [현재 시연 구성도](images/demo-runtime.png)를 참고합니다.
+
 현재 시연은 Tesla Model 3(도어 래치, 헤드램프, 12V 배터리, 리졸버)와 Model X(LV 배터리, 팰컨 윙 래치, 도어 초음파 센서, 충전 포트) 케이스를 포함합니다 (PR #6 이후). 모든 차량·후보에 정비 절차가 준비된 것은 아닙니다. 도어 상세 외 일부 부품은 위치 설명용 상자로 표현합니다.
 
 절차·토크·그림은 Tesla Model 3·Model X Service Manual을 참고하며, 3D 모델은 Sketchfab의 CC BY 4.0 모델(Model 3: dannzjs, Model X: David_Holiday)입니다. 출처 링크는 README 10장에 있습니다. 고장코드 번호·VIN·관측 비율·정비 시간·팁 등은 예시 데이터입니다. 실차 진단·정비에 사용하지 않습니다. 기록은 목 API 상태로 브라우저 `localStorage`에만 남고(PR #9 이후, 같은 브라우저의 창끼리 공유), 팀원 간에는 공유되지 않습니다. 시연 전 초기화는 개발자 도구에서 `localStorage.removeItem('repair-thread-mock-v1')`입니다.

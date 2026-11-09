@@ -154,6 +154,10 @@ Tesla Model 3, 고장코드 B1A24 (리어 왼쪽 도어 래치, 예시 코드). 
 | **Mock** | 백엔드 서비스 전체를 같은 인터페이스(`RepairThreadApi`)의 목 API로 대체. 시드 사례 8개, 차량 2대, 단계 팁 12건. 상태는 브라우저 `localStorage` |
 | **설계만** | Spring Boot 마이크로서비스, EKS 배포, 신입 모드, 개선 제안, 팁 추천·신고, 실제 제조사 연동 |
 
+![현재 시연 구성: 정비사 창과 공장 창이 useRepairStore와 RepairThreadApi를 거쳐 브라우저 안 목 API를 쓰고, localStorage와 BroadcastChannel로 창끼리 새로고침 없이 갱신됨](docs/images/demo-runtime.png)
+
+화면 코드는 `RepairThreadApi` 인터페이스에만 의존함. 지금은 목 구현이 붙어 있고, 백엔드가 생기면 같은 인터페이스의 HTTP 구현으로 바꿈.
+
 ## 5. Technical Design
 
 ### 아키텍처 (C4 Level 2)

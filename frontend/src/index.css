@@ -1,0 +1,13 @@
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0a; --surface: #141414; --surface-2: #1c1c1c; --line: rgba(255,255,255,.09); --line-2: rgba(255,255,255,.18);
+  --fg: #f2f2f2; --muted: #9a9a9a; --dim: #8a8a8a;
+  --target: #3d8bff; --remove: #ff453a; --hv: #ffb020; --ok: #7ee0a1;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --f-mono: "Geist Mono", ui-monospace, Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }

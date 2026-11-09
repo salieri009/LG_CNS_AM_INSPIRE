@@ -1,5 +1,6 @@
+import { Fragment } from 'react';
 import type { Candidate } from '../api/types';
-import { CASES, DTC_SUGGESTIONS } from '../mocks/seed';
+import { CASES, DTC_SUGGESTIONS, caseVehicle } from '../mocks/seed';
 import { canLeave, hvCleared, useRepair, type HistoryItem } from '../store/useRepairStore';
 import { FASTENER_LABEL } from './labels';
 import { RecordForm } from './RecordForm';
@@ -30,7 +31,7 @@ export function RightPanel() {
           <>
             <p className="label">원인 후보 · 공식 점검 순서</p>
             <ol className="cands">
-              {job.candidates.map((c, i) => <CandidateItem key={c.partId} c={c} on={i === s.selected} onSelect={() => s.select(i)} />)}
+              {job.candidates.map((c, i) => <CandidateItem key={c.partId} c={c} on={i === s.selected} out={s.ruledOut.includes(c.partId)} onSelect={() => s.select(i)} />)}
             </ol>
             <p className="note">관측 비율은 같은 사양에서 원인이 확인된 완료 건 기준이며 고장 발생률이 아닙니다. 30건 미만은 참고용입니다.</p>
           </>
@@ -45,7 +46,7 @@ export function RightPanel() {
                 return (
                   <li key={st.stepId} className={`${i < s.step ? 'done' : i === s.step ? 'cur' : ''} ${st.requiresHvAck ? 'hv' : ''}`}>
                     <button onClick={() => s.goTo(i)} disabled={locked}>
-                      <span className="ic">{i < s.step ? '✓' : i + 1}</span><span className="t">{st.title}</span><span className="m">{FASTENER_LABEL[st.fastenerType]} · {st.minutes}분{st.requiresHvAck ? (s.acked[st.stepId] ? ' · 0V 확인' : ' · 고전압') : ''}</span>
+                      <span className="ic">{i < s.step ? '✓' : i + 1}</span><span className="t">{st.title}</span><span className="m">{s.stepLog[st.stepId]?.blocked ? '막힘 · ' : ''}{FASTENER_LABEL[st.fastenerType]} · {i < s.step && s.stepLog[st.stepId]?.endedAt ? `실제 ${Math.max(1, Math.round((s.stepLog[st.stepId].endedAt! - s.stepLog[st.stepId].startedAt) / 60_000))}분` : `${st.minutes}분`}{st.requiresHvAck ? (s.acked[st.stepId] ? ' · 0V 확인' : ' · 고전압') : ''}</span>
                     </button>
                   </li>
                 );
@@ -73,7 +74,7 @@ function Idle() {
         <>
           <p className="label">이 차종에서 자주 검색된 고장코드</p>
           <ul className="codes">
-            {[...DTC_SUGGESTIONS].sort((a, b) => b.searches - a.searches).map(c => (
+            {DTC_SUGGESTIONS.filter(c => c.vehicle === vehicle.model).sort((a, b) => b.searches - a.searches).map(c => (
               <li key={c.code}>
                 <button onClick={() => void pickCode(c.code)}>
                   <b>{c.code}</b><span>{c.description.replace(' (예시 코드)', '')}</span><small>{c.symptom}</small><em>{c.searches}회</em>
@@ -102,19 +103,26 @@ function Idle() {
 }
 
 /** 원인 후보 한 줄. 펼치면 근거(고질 문제·정비사 기록·관측 비율)와 수리 절차 요약이 나온다 */
-function CandidateItem({ c, on, onSelect }: { c: Candidate; on: boolean; onSelect: () => void }) {
-  const { startRepair, resume, history, job } = useRepair(st => st);
+function CandidateItem({ c, on, out, onSelect }: { c: Candidate; on: boolean; out: boolean; onSelect: () => void }) {
+  const { startRepair, resume, history, job, vehicle, ruleOut } = useRepair(st => st);
+  // 같은 고장코드가 다른 차종에서는 절차가 어떻게 다른지 (VIN별 안내가 필요한 이유)
+  const others = c.procedure ? CASES.filter(k => k.code === job?.dtcCode && caseVehicle(k) !== vehicle?.model).flatMap(k => {
+    const oc = k.candidates.find(x => x.officialOrder === c.officialOrder && x.procedureId);
+    const pr = oc && k.procedures.find(x => x.procedureId === oc.procedureId);
+    return pr ? [{ vehicle: caseVehicle(k).replace('Tesla ', ''), steps: pr.steps.length, minutes: pr.standardMinutes }] : [];
+  }) : [];
   const live = history.find(h => h.status === 'live' && h.code === job?.dtcCode && h.partId === c.partId);
   const p = c.procedure;
   const pct = c.observed ? Math.round((c.observed.count / c.observed.n) * 100) : null;
   return (
-    <li className={on ? 'on' : ''}>
+    <li className={`${on ? 'on' : ''} ${out ? 'out' : ''}`}>
       <button className="cand-h" aria-expanded={on} onClick={onSelect}>
         <span className="rank">{String(c.officialOrder).padStart(2, '0')}</span>
         <span className="name">{c.partName}</span>
         <span className="pct">{pct === null ? '–' : `${pct}%`}</span>
       </button>
       <p className="meta">
+        {out && <span className="tag">점검 완료 · 원인 아님</span>}
         {c.chronic && <span className="tag chronic">고질 문제</span>}
         {c.observed ? `관측 ${c.observed.count}/${c.observed.n}건` : `표본 부족 (${c.observedRaw.count}/${c.observedRaw.n}건), 참고용`}
       </p>
@@ -124,10 +132,12 @@ function CandidateItem({ c, on, onSelect }: { c: Candidate; on: boolean; onSelec
           <dl>
             <dt>점검 방법</dt><dd>{c.checkMethod}</dd>
             <dt>정비사 기록</dt><dd>{c.agree}명이 이 부품을 실제 원인으로 기록</dd>
+            {others.map(o => <Fragment key={o.vehicle}><dt>다른 차종</dt><dd>{o.vehicle}는 같은 코드에 {o.steps}단계 · 표준 {o.minutes}분 (VIN마다 절차가 다릅니다)</dd></Fragment>)}
             {p && <><dt>수리 절차</dt><dd>{p.steps}단계 · 단계별 예상 합 {p.minutes}분{p.requiresHv ? ' · 고전압 차단 포함' : ''}</dd></>}
           </dl>
           {p?.heroImage && <img className="hero-img" src={p.heroImage} alt={`${c.partName} 매뉴얼 그림`} loading="lazy" />}
           {p?.requiresHv && <p className="hv-note">고전압 차단 후 0V 확인 단계가 있습니다. 확인 전에는 다음 단계로 넘어가지 않습니다.</p>}
+          <button className="pill" onClick={() => ruleOut(c.partId)}>{out ? '원인 아님 취소' : '점검했는데 원인 아님 → 다음 후보'}</button>
           {live && p
             ? <button className="pill solid" onClick={() => void resume(live.id)}>진행 중인 작업 이어서 ({live.step + 1}/{p.steps}단계) →</button>
             : <button className="pill solid" onClick={() => void startRepair(c.partId)} disabled={!p}>{p ? '이 원인으로 수리 진행 →' : '절차 준비 중 (시연 범위 밖)'}</button>}

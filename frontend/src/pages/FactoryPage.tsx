@@ -1,72 +1,124 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/mockApi';
 import type { ManufacturerMetrics, PartMetric } from '../api/types';
 import { TopBar } from '../components/TopBar';
+import { partLocation } from '../mocks/partLocations';
+import { VEHICLE_LIST } from '../mocks/seed';
+import { RepairViewer } from '../viewer/RepairViewer';
+import { modelFor } from '../viewer/config';
 
 const over = (p: PartMetric) => Math.round((p.avgMinutes / p.standardMinutes - 1) * 100);
 
-/** 공장·설계 화면 (README B①): 정비사 기록에서 모인 "정비하기 어려운 부품" 지표 */
+/**
+ * 공장·설계 화면 (README B①): 정비사 화면과 같은 틀(3D 전체 + 좌우 패널)에서,
+ * 정비사 기록으로 모인 "정비하기 어려운 부품"을 실제 차 위에 난이도 밝기로 칠해 보여 준다.
+ */
 export function FactoryPage() {
   const [m, setM] = useState<ManufacturerMetrics | null>(null);
   const [err, setErr] = useState('');
+  const [vehicle, setVehicle] = useState(VEHICLE_LIST[0].name);
+  const [sel, setSel] = useState<string | null>(null);
   useEffect(() => { api.getManufacturerMetrics().then(setM, e => setErr((e as Error).message)); }, []);
-  const parts = [...(m?.parts ?? [])].sort((a, b) => over(b) - over(a));
-  const max = Math.max(1, ...parts.map(p => Math.max(p.avgMinutes, p.standardMinutes)));
-  const total = parts.reduce((a, p) => a + p.n, 0);
-  const worst = parts[0];
+
+  const parts = useMemo(() => (m?.parts ?? [])
+    .map(p => ({ p, loc: partLocation(p.partId) }))
+    .filter(x => x.loc?.vehicle === vehicle)
+    .sort((a, b) => over(b.p) - over(a.p)), [m, vehicle]);
+  const maxOver = Math.max(1, ...parts.map(x => over(x.p)));
+  const selected = parts.find(x => x.p.partId === sel) ?? parts[0];
+  const heat = parts.filter(x => x !== selected).map(x => ({ box: x.loc!.box, level: Math.max(0, over(x.p)) / maxOver }));
+  const max = Math.max(1, ...parts.map(x => Math.max(x.p.avgMinutes, x.p.standardMinutes)));
+  const total = parts.reduce((a, x) => a + x.p.n, 0);
+  const pick = (key: string) => { const hit = parts.find(x => x.loc?.box.key === key); if (hit) setSel(hit.p.partId); };
 
   return (
-    <main className="factory">
+    <div className="mechanic factory-view l-open r-open">
+      <div className="glow" aria-hidden="true" />
+      <div className="stage">
+        <RepairViewer task={null} stepIndex={-1} model={modelFor(vehicle)} heat={heat} onSelectHeat={pick} candidate={selected && { box: selected.loc!.box }} />
+      </div>
       <TopBar showMechanicTools={false} />
-      <header>
-        <p className="label">정비 난이도 · {worst?.profile ?? 'Model 3'}</p>
-        <h1>정비하기 어려운 부품</h1>
-        <p className="muted">독립 정비소에서 기록한 실제 수리 시간을 표준 시간과 비교합니다. 숫자는 시연용 예시 데이터입니다.{m && ` 갱신 ${new Date(m.updatedAt).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })}`}</p>
-      </header>
-      {err && <p role="alert" className="error">{err}</p>}
-      {!m && !err && <p className="muted">불러오는 중…</p>}
-      {m && (
-        <>
-          <section className="kpis" aria-label="요약">
-            <div><b>{total}</b><span>기록된 수리 건</span></div>
-            <div><b>{parts.filter(p => over(p) > 0).length}/{parts.length}</b><span>표준 시간을 넘긴 부품</span></div>
-            {worst && <div><b>+{over(worst)}%</b><span>가장 많이 넘긴 부품 · {worst.partName}</span></div>}
-          </section>
 
-          <section className="metrics">
-            <div className="legend" aria-hidden="true"><span><i className="sw" />실제 평균 시간</span><span><i className="tick" />표준 시간</span></div>
-            <table>
-              <thead><tr><th>부품</th><th>평균 대 표준 (분)</th><th>초과</th><th>모듈째 교체</th><th>가장 막히는 단계</th><th>n</th></tr></thead>
-              <tbody>
-                {parts.map(p => (
-                  <tr key={p.partId}>
-                    <th scope="row">{p.partName}</th>
-                    <td>
-                      <div className="bullet" title={`${p.partName}: 평균 ${p.avgMinutes}분, 표준 ${p.standardMinutes}분`}>
-                        <i style={{ width: `${(p.avgMinutes / max) * 100}%` }} />
-                        <em style={{ left: `${(p.standardMinutes / max) * 100}%` }} />
-                      </div>
-                      <small className="mono">{p.avgMinutes} / {p.standardMinutes}</small>
-                    </td>
-                    <td className="mono">{over(p) > 0 ? `+${over(p)}%` : `${over(p)}%`}</td>
-                    <td className="mono">{Math.round(p.moduleReplaceRate * 100)}%</td>
-                    <td>{p.topStuckStep}</td>
-                    <td className={`mono ${p.n < 30 ? 'muted' : ''}`}>{p.n}{p.n < 30 ? ' (참고용)' : ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+      <aside className="lside" aria-label="차종과 요약">
+        <section>
+          <p className="label">차종</p>
+          <div className="vsel">
+            {VEHICLE_LIST.map(v => (
+              <button key={v.name} aria-pressed={vehicle === v.name} onClick={() => { setVehicle(v.name); setSel(null); }}>
+                <strong>{v.name}</strong><small>{v.sub}</small><em>EV</em>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section>
+          <p className="label">요약</p>
+          <div className="stats">
+            <div><b>{total}</b><span>기록된 수리</span></div>
+            <div><b>{parts.filter(x => over(x.p) > 0).length}/{parts.length}</b><span>표준 초과 부품</span></div>
+            <div><b>{parts[0] ? `+${over(parts[0].p)}%` : '–'}</b><span>최대 초과</span></div>
+          </div>
+        </section>
+        <section>
+          <p className="label">3D 색 읽는 법</p>
+          <div className="heat-legend" aria-hidden="true"><i /><span>덜 초과</span><span>표준 대비 더 초과</span></div>
+          <p className="note">파란 부품이 지금 고른 부품입니다. 나머지 부품은 표준 시간을 넘긴 정도가 클수록 밝게 칠했습니다. 숫자는 시연용 예시 데이터입니다.</p>
+        </section>
+      </aside>
 
-          {worst && (
-            <section className="insight">
-              <p className="label">설계 쪽에 전할 점</p>
-              <p><b>{worst.partName}</b>은 표준보다 평균 {worst.avgMinutes - worst.standardMinutes}분 더 걸리고, 정비사들이 가장 오래 막힌 곳은 "{worst.topStuckStep}"입니다.
-                {worst.moduleReplaceRate > 0.5 ? ` 수리의 ${Math.round(worst.moduleReplaceRate * 100)}%가 부품 하나가 아니라 모듈째 교체로 끝나, 낱개 부품 공급이나 체결 방식 검토가 필요해 보입니다.` : ' 분해 순서 안내나 공구 접근성을 먼저 살펴볼 만합니다.'}</p>
-            </section>
-          )}
-        </>
+      <aside className="rpanel" aria-label="정비하기 어려운 부품">
+        <header className="rp-h">
+          <p className="label">정비 난이도 · 정비사 기록 기준</p>
+          <h2>정비하기 어려운 부품</h2>
+          {m && <p className="mono muted">갱신 {new Date(m.updatedAt).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })}</p>}
+        </header>
+        <div className="rp-b">
+          {err && <p role="alert" className="error">{err}</p>}
+          {!m && !err && <p className="muted">불러오는 중…</p>}
+          {m && !parts.length && <p className="muted">이 차종은 아직 기록이 없습니다.</p>}
+          <div className="legend" aria-hidden="true"><span><i className="sw" />실제 평균</span><span><i className="tick" />표준 시간</span></div>
+          <ol className="cands">
+            {parts.map(({ p }, i) => {
+              const on = p === selected?.p;
+              return (
+                <li key={p.partId} className={on ? 'on' : ''}>
+                  <button className="cand-h" aria-expanded={on} onClick={() => setSel(p.partId)}>
+                    <span className="rank">{String(i + 1).padStart(2, '0')}</span>
+                    <span className="name">{p.partName}</span>
+                    <span className="pct">{over(p) > 0 ? '+' : ''}{over(p)}%</span>
+                  </button>
+                  <div className="meta-bullet">
+                    <div className="bullet" title={`평균 ${p.avgMinutes}분, 표준 ${p.standardMinutes}분`}>
+                      <i style={{ width: `${(p.avgMinutes / max) * 100}%` }} /><em style={{ left: `${(p.standardMinutes / max) * 100}%` }} />
+                    </div>
+                    <small className="mono">{p.avgMinutes}분 / 표준 {p.standardMinutes}분 · n={p.n}{p.n < 30 ? ' (참고용)' : ''}</small>
+                  </div>
+                  {on && (
+                    <div className="cand-x">
+                      <dl>
+                        <dt>모듈째 교체</dt><dd>{Math.round(p.moduleReplaceRate * 100)}%</dd>
+                        <dt>가장 막힘</dt><dd>{p.topStuckStep}</dd>
+                        <dt>사양</dt><dd>{p.profile}</dd>
+                      </dl>
+                      <p className="insight-line">
+                        표준보다 평균 {p.avgMinutes - p.standardMinutes}분 더 걸리고, 정비사들이 가장 오래 막힌 곳은 "{p.topStuckStep}"입니다.
+                        {p.moduleReplaceRate > 0.5 ? ` 수리의 ${Math.round(p.moduleReplaceRate * 100)}%가 모듈째 교체로 끝나 낱개 부품 공급이나 체결 방식 검토가 필요해 보입니다.` : ' 분해 순서나 공구 접근성부터 살펴볼 만합니다.'}
+                      </p>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </aside>
+
+      {selected && (
+        <section className="hero">
+          <p className="label">공장·설계 · 정비 현장의 목소리</p>
+          <h1>{selected.p.partName}, 표준보다 {over(selected.p)}% 더 걸립니다</h1>
+          <p className="muted">조립하기 쉬운 설계가 고치기에도 쉬운지, 독립 정비소의 실제 기록으로 확인합니다.</p>
+        </section>
       )}
-    </main>
+    </div>
   );
 }

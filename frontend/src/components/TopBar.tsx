@@ -15,7 +15,7 @@ export function TopBar({ showMechanicTools = true }: { showMechanicTools?: boole
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
-  const matches = DTC_SUGGESTIONS.filter(c => !q || c.code.toLowerCase().includes(q.toLowerCase()) || c.description.includes(q) || c.symptom.includes(q));
+  const matches = DTC_SUGGESTIONS.filter(c => c.vehicle === vehicle?.model).filter(c => !q || c.code.toLowerCase().includes(q.toLowerCase()) || c.description.includes(q) || c.symptom.includes(q));
   const choose = (code: string) => { setOpen(false); setQ(''); setActive(0); void pickCode(code); };
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(i => Math.min(matches.length - 1, i + 1)); }

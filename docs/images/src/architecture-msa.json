@@ -1,0 +1,213 @@
+{
+ "scale": 40,
+ "title": "Repair Thread · MSA 구성도 (C4 Level 2)",
+ "caption": "AI 없음 · 서비스 간에는 ID만 참조, 다른 서비스 DB 직접 조인 금지 · 분석은 정비 DB 집계 조회",
+ "platforms": [
+  {
+   "id": "client",
+   "x": 0,
+   "y": 0,
+   "w": 8,
+   "d": 12,
+   "label": "클라이언트"
+  },
+  {
+   "id": "gw",
+   "x": 12,
+   "y": 0,
+   "w": 7,
+   "d": 12,
+   "label": "API Gateway"
+  },
+  {
+   "id": "ext",
+   "x": 23,
+   "y": -11,
+   "w": 12,
+   "d": 5,
+   "label": "외부 · 제조사"
+  },
+  {
+   "id": "svc",
+   "x": 23,
+   "y": -3,
+   "w": 12,
+   "d": 24,
+   "label": "마이크로서비스 · Spring Boot"
+  },
+  {
+   "id": "store",
+   "x": 39,
+   "y": -3,
+   "w": 8,
+   "d": 24,
+   "label": "저장소 · 서비스별 소유"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "mech",
+   "icon": "person",
+   "label": "정비사",
+   "x": -5,
+   "y": 2
+  },
+  {
+   "id": "eng",
+   "icon": "person",
+   "label": "제조사 담당자",
+   "x": -5,
+   "y": 9
+  },
+  {
+   "id": "web",
+   "on": "client",
+   "icon": "hex:A:#16a34a",
+   "label": "정비사 웹앱",
+   "x": 4,
+   "y": 3
+  },
+  {
+   "id": "dash",
+   "on": "client",
+   "icon": "hex:B:#2563eb",
+   "label": "공장 대시보드",
+   "x": 4,
+   "y": 8.5
+  },
+  {
+   "id": "gwn",
+   "on": "gw",
+   "icon": "hex:GW:#475569",
+   "label": "인증·권한·제조사 범위",
+   "x": 3.5,
+   "y": 6
+  },
+  {
+   "id": "oem",
+   "on": "ext",
+   "icon": "hex:M:#1e293b",
+   "label": "제조사 시스템",
+   "x": 6,
+   "y": 2.4
+  },
+  {
+   "id": "pdb",
+   "on": "store",
+   "icon": "hex:DB:#64748b",
+   "label": "생산 DB",
+   "x": 4,
+   "y": 2
+  },
+  {
+   "id": "rdb",
+   "on": "store",
+   "icon": "hex:DB:#64748b",
+   "label": "정비 DB",
+   "x": 4,
+   "y": 12
+  },
+  {
+   "id": "mdl",
+   "on": "store",
+   "icon": "hex:3D:#b45309",
+   "label": "3D 모델 저장소",
+   "x": 4,
+   "y": 22
+  }
+ ],
+ "rows": [
+  {
+   "on": "svc",
+   "dir": "y",
+   "x": 6,
+   "y": 2,
+   "gap": 5,
+   "items": [
+    {
+     "id": "pi",
+     "icon": "si:springboot",
+     "label": "생산 연동"
+    },
+    {
+     "id": "diag",
+     "icon": "si:springboot",
+     "label": "진단"
+    },
+    {
+     "id": "rec",
+     "icon": "si:springboot",
+     "label": "정비 기록"
+    },
+    {
+     "id": "ana",
+     "icon": "si:springboot",
+     "label": "분석"
+    },
+    {
+     "id": "guide",
+     "icon": "si:springboot",
+     "label": "3D 가이드"
+    }
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "mech",
+   "to": "web"
+  },
+  {
+   "from": "eng",
+   "to": "dash"
+  },
+  {
+   "from": "client",
+   "fromSide": "br",
+   "to": "gw",
+   "toSide": "tl",
+   "label": "HTTPS"
+  },
+  {
+   "from": "gw",
+   "fromSide": "br",
+   "to": "svc",
+   "toSide": "tl",
+   "label": "라우팅"
+  },
+  {
+   "from": "diag",
+   "to": "pi"
+  },
+  {
+   "from": "diag",
+   "to": "rec"
+  },
+  {
+   "from": "ana",
+   "to": "rec",
+   "color": "red"
+  },
+  {
+   "from": "pi",
+   "to": "pdb",
+   "dashed": true
+  },
+  {
+   "from": "rec",
+   "to": "rdb",
+   "dashed": true
+  },
+  {
+   "from": "guide",
+   "to": "mdl",
+   "dashed": true
+  },
+  {
+   "from": "pi",
+   "to": "ext",
+   "toSide": "bl",
+   "label": "생산 이력"
+  }
+ ]
+}

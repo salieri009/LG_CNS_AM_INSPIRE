@@ -2,6 +2,12 @@
 
 > LG CNS AM INSPIRE CAMP 6기 해커톤 · 5팀 팩토리 도메인 (2026-11-09 ~ 11-10)
 
+![Hackathon](https://img.shields.io/badge/LG%20CNS%20AM%20INSPIRE-6%EA%B8%B0%20%ED%95%B4%EC%BB%A4%ED%86%A4-A50034)
+![Architecture](https://img.shields.io/badge/Architecture-MSA%205%20services-2563eb)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-backend-6DB33F?logo=springboot&logoColor=white)
+![No AI](https://img.shields.io/badge/AI%C2%B7LLM-%EC%97%86%EC%9D%8C%20(%EA%B7%9C%EC%B9%99%20%EA%B8%B0%EB%B0%98)-64748b)
+![Status](https://img.shields.io/badge/status-%EA%B8%B0%ED%9A%8D%20%EC%99%84%EB%A3%8C-b45309)
+
 **공장은 조립하기 쉬운 차를 만들지만, 그 차가 얼마나 고치기 어려운지는 모른다.**
 
 정비 결과 한 건이 다음 정비사의 점검 추천과 공장의 설계 지표를 동시에 바꾸는 양방향 루프를 만든다.
@@ -21,6 +27,15 @@
 
 ## 해결
 
+![정비 결과 한 건이 진단 피드백(정비사)과 제조 피드백(공장) 두 방향으로 되돌아가는 루프](docs/images/feedback-loop.png)
+
+- **왼쪽 루프 (진단 피드백)**: 기록이 쌓일수록 다음 정비사가 보는 A② 관측 원인 비율이 정확해짐
+- **오른쪽 루프 (제조 피드백)**: 같은 기록이 공장 지표가 되어 B④ 개선 검토의 근거가 되고, 다음 생산 차수로 이어짐
+- 아래 남색 블록은 실제 API와 집계 규칙 ([API 명세](docs/api-spec.md))
+
+<details>
+<summary>텍스트 버전 (Mermaid)</summary>
+
 ```mermaid
 flowchart LR
   D[정비사 대시보드<br/>원인 후보 · 3D 경로 · 단계 팁] -->|수리 후 기록| W[정비 결과 기록]
@@ -30,6 +45,8 @@ flowchart LR
   B -->|다음 생산 반영| P[생산 이력]
   P -->|허용 범위 공개| D
 ```
+
+</details>
 
 ### 정비사 대시보드
 
@@ -59,6 +76,13 @@ flowchart LR
 
 ## 아키텍처 (C4 Level 2)
 
+![MSA 구성도: 클라이언트, API Gateway, Spring Boot 마이크로서비스 5개, 서비스별 저장소, 외부 제조사 시스템](docs/images/architecture-msa.png)
+
+실선은 호출, 점선은 서비스가 소유한 저장소, 빨간 선은 분석 서비스의 정비 기록 집계 조회. A·B는 정비사·공장 대시보드, 기술 스택이 정해지지 않은 요소는 글자 배지로 표시함.
+
+<details>
+<summary>텍스트 버전 (Mermaid)</summary>
+
 ```mermaid
 flowchart TB
   MECH([정비사]) --> WEB[정비사 웹앱]
@@ -74,6 +98,8 @@ flowchart TB
   PI -.-> PDB[(생산 DB)]
   PI --> EXT[제조사 시스템 · 외부]
 ```
+
+</details>
 
 - 마이크로서비스 5개, 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음
 - 진단·분석 서비스는 자체 DB 없이 다른 서비스를 호출 (분석은 정비 DB 집계 조회)
@@ -98,6 +124,7 @@ flowchart TB
 | [docs/planning.md](docs/planning.md) | 기획서 전체: 문제 정의, 근거, 페르소나, 벤치마킹, 기능 정의, 유스케이스, 화면, 정책, 결정 로그, 지표, Q&A, 개발용 다이어그램 |
 | [docs/api-spec.md](docs/api-spec.md) | API 명세 초안 7개와 관련 정책 |
 | [docs/data-dictionary.md](docs/data-dictionary.md) | 테이블 14개, 소유 서비스·저장소 |
+| [docs/images/src/](docs/images/src) | 그림 원본: 구성도 스펙(JSON), 루프 다이어그램(Excalidraw) |
 
 ## 상태
 

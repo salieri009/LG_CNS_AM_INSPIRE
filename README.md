@@ -2,6 +2,8 @@
 
 # Repair Thread
 
+> **팀원 로컬 실행:** 현재 개발 중인 화면은 `feature/frontend-skeleton` 브랜치에 있습니다. [설치·실행 방법과 시연 순서](docs/local-preview.md)를 확인해 주세요.
+
 **차량 고장코드 기반 3D 정비 지원 서비스**
 
 LG CNS AM INSPIRE CAMP 6기 해커톤 · 5팀 팩토리 · 2026-11-09 ~ 11-10

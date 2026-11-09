@@ -6,7 +6,7 @@
 
 ## 14-1. 서비스 분리 (D22)
 
-12-1의 서비스 5개에서 auth와 knowledge를 더 나누고, 웹앱 2개와 제조사 시스템 대역(mock)도 파드로 올림.
+12-1의 서비스 5개에서 auth와 knowledge를 더 나누고, 웹앱 2개와 제조사 시스템 대역(mock)도 파드로 올림. 해커톤 시연에서는 이 중 7개만 실제 코드이고, auth·knowledge·production·manufacturer-mock은 고정 응답 Mock임 (5장, D23).
 
 | Deployment | 역할 | 12-1 기준 | 저장소 | 레플리카 (최소\~최대) |
 | --- | --- | --- | --- | --- |
@@ -168,7 +168,7 @@ repair-thread/
 
 | 리스크 | 대응 |
 | --- | --- |
-| EKS 구성이 시간 안에 안 끝남 | 같은 Kustomize 매니페스트를 EC2 1대의 k3s에 apply (Plan B). Ingress만 k3s 기본 Traefik으로 바꿈 |
+| EKS 구성이 시간 안에 안 끝남 | 11-10 12:00까지 TC-K8S-01·02를 통과 못 하면 같은 Kustomize 매니페스트를 EC2 1대의 k3s에 apply (Plan B, 시간 게이트). Ingress만 k3s 기본 Traefik으로 바꿈 |
 | 노드·파드가 늘 때 대기 시간 | 시연 10분 전 워밍업 요청, 사용자 경로는 최소 1개 유지 |
 | Aurora 재개 지연 | 시연일 최소 0.5 ACU, 커넥션 타임아웃 30초 이상 |
 | Spot 회수 | 시연일 사용자 경로는 온디맨드 NodePool (선택) |

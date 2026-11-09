@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { api } from '../api/mockApi';
-import type { ManufacturerMetrics, PartMetric } from '../api/types';
+import { api, onMockChange } from '../api/mockApi';
+import type { ManufacturerMetrics } from '../api/types';
 import { TopBar } from '../components/TopBar';
 import { partLocation } from '../mocks/partLocations';
 import { VEHICLE_LIST } from '../mocks/seed';
 import { RepairViewer } from '../viewer/RepairViewer';
 import { modelFor } from '../viewer/config';
-
-const over = (p: PartMetric) => Math.round((p.avgMinutes / p.standardMinutes - 1) * 100);
+import { METRIC_MIN_N, overPct as over, rankParts } from './factoryRank';
 
 /**
  * 공장·설계 화면 (README B①): 정비사 화면과 같은 틀(3D 전체 + 좌우 패널)에서,
@@ -18,17 +17,24 @@ export function FactoryPage() {
   const [err, setErr] = useState('');
   const [vehicle, setVehicle] = useState(VEHICLE_LIST[0].name);
   const [sel, setSel] = useState<string | null>(null);
-  useEffect(() => { api.getManufacturerMetrics().then(setM, e => setErr((e as Error).message)); }, []);
+  // 정비사 화면(다른 창 포함)에서 기록이 들어오면 지표를 다시 불러온다
+  useEffect(() => {
+    const load = () => { api.getManufacturerMetrics().then(setM, e => setErr((e as Error).message)); };
+    load();
+    const off = onMockChange(load);
+    window.addEventListener('focus', load);
+    return () => { off(); window.removeEventListener('focus', load); };
+  }, []);
 
-  const parts = useMemo(() => (m?.parts ?? [])
+  // 유효 n 10 미만 부품은 순위·3D 밝기에서 빼고 목록 맨 아래에 표본 부족으로 둔다
+  const { ranked: parts, insufficient } = useMemo(() => rankParts((m?.parts ?? [])
     .map(p => ({ p, loc: partLocation(p.partId) }))
-    .filter(x => x.loc?.vehicle === vehicle)
-    .sort((a, b) => over(b.p) - over(a.p)), [m, vehicle]);
+    .filter(x => x.loc?.vehicle === vehicle)), [m, vehicle]);
   const maxOver = Math.max(1, ...parts.map(x => over(x.p)));
   const selected = parts.find(x => x.p.partId === sel) ?? parts[0];
   const heat = parts.filter(x => x !== selected).map(x => ({ box: x.loc!.box, level: Math.max(0, over(x.p)) / maxOver }));
   const max = Math.max(1, ...parts.map(x => Math.max(x.p.avgMinutes, x.p.standardMinutes)));
-  const total = parts.reduce((a, x) => a + x.p.n, 0);
+  const total = [...parts, ...insufficient].reduce((a, x) => a + x.p.n, 0);
   const pick = (key: string) => { const hit = parts.find(x => x.loc?.box.key === key); if (hit) setSel(hit.p.partId); };
 
   return (
@@ -74,7 +80,7 @@ export function FactoryPage() {
         <div className="rp-b">
           {err && <p role="alert" className="error">{err}</p>}
           {!m && !err && <p className="muted">불러오는 중…</p>}
-          {m && !parts.length && <p className="muted">이 차종은 아직 기록이 없습니다.</p>}
+          {m && !parts.length && !insufficient.length && <p className="muted">이 차종은 아직 기록이 없습니다.</p>}
           <div className="legend" aria-hidden="true"><span><i className="sw" />실제 평균</span><span><i className="tick" />표준 시간</span></div>
           <ol className="cands">
             {parts.map(({ p }, i) => {
@@ -90,7 +96,7 @@ export function FactoryPage() {
                     <div className="bullet" title={`평균 ${p.avgMinutes}분, 표준 ${p.standardMinutes}분`}>
                       <i style={{ width: `${(p.avgMinutes / max) * 100}%` }} /><em style={{ left: `${(p.standardMinutes / max) * 100}%` }} />
                     </div>
-                    <small className="mono">{p.avgMinutes}분 / 표준 {p.standardMinutes}분 · n={p.n}{p.n < 30 ? ' (참고용)' : ''}</small>
+                    <small className="mono">{p.avgMinutes}분 / 표준 {p.standardMinutes}분 · n={p.n}</small>
                   </div>
                   {on && (
                     <div className="cand-x">
@@ -109,6 +115,14 @@ export function FactoryPage() {
               );
             })}
           </ol>
+          {insufficient.length > 0 && (
+            <>
+              <p className="label">표본 부족 · 순위 제외 (유효 n {METRIC_MIN_N} 미만)</p>
+              <ul className="cands muted">
+                {insufficient.map(({ p }) => <li key={p.partId}><span className="name">{p.partName}</span> <small className="mono">n={p.n}</small></li>)}
+              </ul>
+            </>
+          )}
         </div>
       </aside>
 

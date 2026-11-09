@@ -20,7 +20,7 @@ export const RESOLVER_CASE: CaseSeed = {
     { partId: 'part-rdu-resolver', partName: '리졸버 커넥터 접촉 불량·부식', officialOrder: 1, checkMethod: '커넥터 잠금 탭·핀 부식 확인 (하부라 습기·진동 노출)', count: 16, n: 34, chronic: true, agree: 16, procedureId: 'proc-resolver', highlightNode: 'resolverAsm' },
     { partId: 'part-resolver-harness', partName: '리졸버–인버터 하네스 손상', officialOrder: 2, checkMethod: '하네스 도통·절연 확인', count: 9, n: 34, chronic: false, agree: 9, box: { key: 'rharness', name: '리졸버 하네스', box: [-1.0, 0.36, 0.22, 0.5, 0.025, 0.025], offset: [0, 0, 0], shape: 'harness' } },
     { partId: 'part-resolver-sensor', partName: '리졸버 센서 자체 불량', officialOrder: 3, checkMethod: 'Toolbox 리졸버 신호 확인', count: 6, n: 34, chronic: false, agree: 6, box: P.rdu },
-    { partId: 'part-inverter', partName: '인버터 신호 처리 이상', officialOrder: 4, checkMethod: '인버터 자기진단 (고전압 작업)', count: 3, n: 11, chronic: false, agree: 3, box: { key: 'inverter', name: '인버터', box: [-1.44, 0.52, 0, 0.3, 0.08, 0.4], offset: [0, 0, 0] } },
+    { partId: 'part-inverter', partName: '인버터 신호 처리 이상', officialOrder: 4, checkMethod: '인버터 자기진단 (고전압 작업)', count: 3, n: 34, chronic: false, agree: 3, box: { key: 'inverter', name: '인버터', box: [-1.44, 0.52, 0, 0.3, 0.08, 0.4], offset: [0, 0, 0] } },
   ],
   procedures: [{
     procedureId: 'proc-resolver', procedureVersion: 'M3-2017-2023 / 40014802 (4DU)', targetPartId: 'part-rdu-resolver', targetPartName: '리졸버 커넥터 어셈블리',

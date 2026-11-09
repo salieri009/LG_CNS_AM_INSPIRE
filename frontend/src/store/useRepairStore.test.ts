@@ -106,6 +106,44 @@ describe('repair store · 기록과 이어하기', () => {
   });
 });
 
+describe('repair store · 리뷰 반영 (차종·고전압·원인 미확인)', () => {
+  const M3 = '5YJ3E1EA0JF000000', MX = '7SAXCBE50NF000000';
+
+  it('다른 차를 고른 상태에서 기록을 열면 그 기록의 차량과 사례로 바뀐다', async () => {
+    await store.getState().lookup(MX);
+    const done = store.getState().history.find(h => h.status === 'done')!;
+    await store.getState().resume(done.id);
+    const s = store.getState();
+    expect(s.vehicle?.model).toBe('Tesla Model 3');
+    expect(s.job?.candidates.some(c => c.partId === done.partId)).toBe(true);
+    expect(s.error).toBe('');
+  });
+
+  it('고전압 단계 뒤에서 멈춘 작업을 이어하면 확인 기록이 되살아나 결과를 저장할 수 있다', async () => {
+    await store.getState().lookup(MX);
+    const live = store.getState().history.find(h => h.status === 'live')!;
+    await store.getState().resume(live.id);
+    const s = store.getState();
+    expect(s.vehicle?.model).toBe('Tesla Model 3');
+    expect(s.step).toBe(live.step);
+    expect(s.task?.steps.filter(st => st.requiresHvAck).every(st => s.acked[st.stepId])).toBe(true);
+    await store.getState().submitRecord({ actualCausePartId: live.partId, actualMinutes: 90, stuckStepId: null, moduleReplaced: false, memo: '', memoPublic: false });
+    expect(store.getState().error).toBe('');
+    expect(store.getState().history.find(h => h.id === live.id)?.status).toBe('done');
+  });
+
+  it('원인 미확인으로 기록하면 같은 코드를 다시 진단해도 n이 그대로다', async () => {
+    await store.getState().lookup(M3);
+    await store.getState().pickCode('B1A24');
+    const n0 = store.getState().job!.candidates[0].observedRaw.n;
+    await store.getState().startRepair(store.getState().job!.candidates[0].partId);
+    await store.getState().submitRecord({ actualCausePartId: null, actualMinutes: 30, stuckStepId: null, moduleReplaced: false, memo: '', memoPublic: false });
+    expect(store.getState().notice).toContain('원인 미확인');
+    await store.getState().pickCode('B1A24');
+    expect(store.getState().job!.candidates[0].observedRaw.n).toBe(n0);
+  });
+});
+
 describe('repair store · 단계별 기록 (job_step_log·knowledge_entry)', () => {
   afterEach(() => { vi.useRealTimers(); });
   const start = async () => {

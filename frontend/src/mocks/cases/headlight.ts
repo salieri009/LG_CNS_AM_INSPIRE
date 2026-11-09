@@ -20,7 +20,7 @@ export const HEADLIGHT_CASE: CaseSeed = {
     { partId: 'part-headlight-lh', partName: '헤드램프 어셈블리 (LH)', officialOrder: 1, checkMethod: '램프 안 습기·하우징 파손 육안 확인', count: 21, n: 44, chronic: true, agree: 21, procedureId: 'proc-headlight-lh', highlightNode: 'headlight' },
     { partId: 'part-headlight-conn', partName: '헤드램프 커넥터 접촉 불량', officialOrder: 2, checkMethod: '커넥터 핀 부식·잠금 탭 확인', count: 13, n: 44, chronic: false, agree: 13, box: P.headConn },
     { partId: 'part-front-bcm', partName: '전방 차체 제어 모듈', officialOrder: 3, checkMethod: 'Toolbox 출력 신호 확인', count: 6, n: 44, chronic: false, agree: 6, box: { key: 'bcm', name: '전방 차체 제어 모듈', box: [1.55, 0.66, 0.32, 0.16, 0.06, 0.2], offset: [0, 0, 0] } },
-    { partId: 'part-front-fuse', partName: '퓨즈·전원 공급', officialOrder: 4, checkMethod: '퓨즈 도통과 전원 전압 측정', count: 4, n: 12, chronic: false, agree: 4, box: { key: 'fuse', name: '퓨즈 박스', box: [1.45, 0.72, 0.42, 0.1, 0.05, 0.1], offset: [0, 0, 0] } },
+    { partId: 'part-front-fuse', partName: '퓨즈·전원 공급', officialOrder: 4, checkMethod: '퓨즈 도통과 전원 전압 측정', count: 4, n: 44, chronic: false, agree: 4, box: { key: 'fuse', name: '퓨즈 박스', box: [1.45, 0.72, 0.42, 0.1, 0.05, 0.1], offset: [0, 0, 0] } },
   ],
   procedures: [{
     procedureId: 'proc-headlight-lh', procedureVersion: 'M3-2017-2023 / 17400102', targetPartId: 'part-headlight-lh', targetPartName: '헤드램프 어셈블리 (LH)',

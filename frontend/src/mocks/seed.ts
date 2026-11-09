@@ -22,6 +22,8 @@ export const VEHICLE_LIST = [
 
 export const CASES: CaseSeed[] = [LATCH_CASE, HEADLIGHT_CASE, BATTERY_CASE, RESOLVER_CASE, MODELX_BATTERY_CASE, MODELX_LATCH_CASE, MODELX_SENSOR_CASE, MODELX_CHARGE_CASE];
 export const caseVehicle = (c: CaseSeed) => c.vehicle ?? 'Tesla Model 3';
+/** VIN의 차종과 고장코드로 사례를 찾는다 (같은 코드라도 차종마다 사례가 다르다) */
+export const caseFor = (vin: string, code: string) => CASES.find(c => c.code === code && caseVehicle(c) === VEHICLES[vin]?.model);
 
 /** 상단 검색 자동완성. 검색 횟수는 예시 */
 export const DTC_SUGGESTIONS = CASES.map(c => ({ vehicle: caseVehicle(c), code: c.code, description: c.description, symptom: c.symptom, searches: c.searches }));
@@ -45,6 +47,6 @@ export const MECHANIC = { name: '김 주임', shop: '정비소 #A-1042 (비공�
 
 /** 오늘 작업 목록 시드. step은 멈춘 단계(0부터) */
 export const HISTORY_SEED = [
-  { id: 'h1', code: 'P0A3F', partId: 'part-rdu-resolver', time: '11:15', status: 'live' as const, step: 3 },
-  { id: 'h2', code: 'B1A24', partId: 'part-latch-rl', time: '09:40', status: 'done' as const, step: 6, minutes: 52 },
+  { id: 'h1', vin: '5YJ3E1EA0JF000000', code: 'P0A3F', partId: 'part-rdu-resolver', time: '11:15', status: 'live' as const, step: 3 },
+  { id: 'h2', vin: '5YJ3E1EA0JF000000', code: 'B1A24', partId: 'part-latch-rl', time: '09:40', status: 'done' as const, step: 6, minutes: 52 },
 ];

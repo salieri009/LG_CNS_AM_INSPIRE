@@ -7,7 +7,7 @@ export const LATCH_CASE: CaseSeed = {
     { partId: 'part-latch-rl', partName: '리어 도어 래치 (LH)', officialOrder: 1, checkMethod: '래치 커넥터 체결과 작동음 확인', count: 25, n: 48, chronic: true, agree: 25, procedureId: 'proc-latch-rl', highlightNode: 'latch' },
     { partId: 'part-switch-rl', partName: '실내 도어 열림 스위치 (리어 LH)', officialOrder: 2, checkMethod: '스위치 커넥터와 버튼 입력 확인', count: 12, n: 48, chronic: false, agree: 12, box: { key: 'switch', name: '실내 도어 열림 스위치', box: [-0.25, 0.86, -0.72, 0.07, 0.03, 0.04], offset: [0, 0, 0], shape: 'connector' } },
     { partId: 'part-harness-rl', partName: '리어 도어 하네스 (LH)', officialOrder: 3, checkMethod: '래치·스위치 구간 도통 시험', count: 8, n: 48, chronic: false, agree: 8, box: { key: 'harness', name: '리어 도어 하네스', box: [-0.6, 0.7, -0.84, 0.9, 0.025, 0.025], offset: [0, 0, 0], shape: 'harness' } },
-    { partId: 'part-hall-rl', partName: '외부 핸들 홀 센서 (리어 LH)', officialOrder: 4, checkMethod: '외부 핸들 누름 신호 확인', count: 2, n: 9, chronic: false, agree: 2, box: { key: 'hall', name: '외부 핸들 홀 센서', box: [-0.6, 0.95, -0.97, 0.14, 0.03, 0.03], offset: [0, 0, 0], shape: 'connector' } },
+    { partId: 'part-hall-rl', partName: '외부 핸들 홀 센서 (리어 LH)', officialOrder: 4, checkMethod: '외부 핸들 누름 신호 확인', count: 2, n: 48, chronic: false, agree: 2, box: { key: 'hall', name: '외부 핸들 홀 센서', box: [-0.6, 0.95, -0.97, 0.14, 0.03, 0.03], offset: [0, 0, 0], shape: 'connector' } },
   ],
   procedures: [{
     procedureId: 'proc-latch-rl', procedureVersion: 'M3-2017-2023 / 11353702', targetPartId: 'part-latch-rl', targetPartName: '리어 도어 래치 (LH)',

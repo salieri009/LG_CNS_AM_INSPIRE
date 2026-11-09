@@ -22,13 +22,18 @@ describe('mockApi', () => {
     await expect(api.lookupVehicle({ vin: 'UNKNOWN' })).rejects.toThrow('미등록');
   });
 
-  it('후보는 공식 순서대로 오고, n이 30 미만이면 관측 비율을 숨긴다', async () => {
+  it('후보는 공식 순서대로 오고, 한 사례의 후보는 모두 같은 분모(n)를 쓴다', async () => {
     const job = await startJob();
     expect(job.candidates.map(c => c.officialOrder)).toEqual([1, 2, 3, 4]);
-    const small = job.candidates.find(c => c.observedRaw.n < 30)!;
-    expect(small.observed).toBeNull();
-    const big = job.candidates.find(c => c.observedRaw.n >= 30)!;
-    expect(big.observed).toEqual(big.observedRaw);
+    const ns = new Set(job.candidates.map(c => c.observedRaw.n));
+    expect(ns.size).toBe(1);
+    expect(job.candidates.every(c => c.observed !== null)).toBe(true);
+  });
+
+  it('사례의 n이 30 미만이면 그 사례 후보 모두 관측 비율을 숨기고 참고용 원 데이터만 준다', async () => {
+    const v = await api.lookupVehicle({ vin: '7SAXCBE50NF000000' });
+    const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B1A3C'], symptoms: [] });
+    expect(job.candidates.every(c => c.observedRaw.n < 30 && c.observed === null)).toBe(true);
   });
 
   it('작업을 만들면 단계와 3D 모델 정보가 온다', async () => {
@@ -55,6 +60,45 @@ describe('mockApi', () => {
     await api.completeJob(job.jobId, { actualCausePartId: partId, actualMinutes: 70, stuckStepId: null, moduleReplaced: false, memo: '', memoPublic: false });
     const n1 = (await api.getManufacturerMetrics()).parts.find(p => p.partId === partId)!.n;
     expect(n1).toBe(n0 + 1);
+  });
+});
+
+describe('mockApi · 정책 검증', () => {
+  const req = (actualCausePartId: string | null) => ({ actualCausePartId, actualMinutes: 40, stuckStepId: null, moduleReplaced: false, memo: '', memoPublic: false });
+
+  it('원인 미확인으로 기록하면 원인 통계 분모(n)와 공장 지표에 넣지 않는다', async () => {
+    const job = await startJob();
+    const n0 = job.candidates[0].observedRaw.n;
+    const m0 = (await api.getManufacturerMetrics()).parts.map(p => p.n);
+    expect((await api.completeJob(job.jobId, req(null))).duplicated).toBe(false);
+    expect((await startJob()).candidates[0].observedRaw.n).toBe(n0);
+    expect((await api.getManufacturerMetrics()).parts.map(p => p.n)).toEqual(m0);
+  });
+
+  it('고전압 확인 기록 없이 완료를 보내면 거절하고, 확인을 남긴 뒤에는 저장한다', async () => {
+    const v = await api.lookupVehicle({ vin: DEMO_VIN });
+    const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['P0A3F'], symptoms: [] });
+    const task = await api.createTask(job.jobId, job.candidates[0].partId);
+    const hv = task.steps.filter(s => s.requiresHvAck);
+    expect(hv.length).toBeGreaterThan(0);
+    await expect(api.completeJob(job.jobId, req(task.targetPartId))).rejects.toThrow('고전압 확인');
+    for (const s of hv) await api.ackStep(task.taskId, s.stepId);
+    expect((await api.completeJob(job.jobId, req(task.targetPartId))).duplicated).toBe(false);
+  });
+
+  it('저장소를 같이 쓰는 두 인스턴스(정비사 창·공장 창)는 완료 기록을 같이 본다', async () => {
+    const mem = new Map<string, string>();
+    const storage = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => { mem.set(k, v); } };
+    const mechanic = createMockApi({ delayMs: 0, storage });
+    const factory = createMockApi({ delayMs: 0, storage });
+    const v = await mechanic.lookupVehicle({ vin: DEMO_VIN });
+    const job = await mechanic.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B1A24'], symptoms: [] });
+    const partId = job.candidates[0].partId;
+    const n0 = (await factory.getManufacturerMetrics()).parts.find(p => p.partId === partId)!.n;
+    await mechanic.completeJob(job.jobId, req(partId));
+    expect((await factory.getManufacturerMetrics()).parts.find(p => p.partId === partId)!.n).toBe(n0 + 1);
+    const again = await factory.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B1A24'], symptoms: [] });
+    expect(again.candidates[0].observedRaw.n).toBe(job.candidates[0].observedRaw.n + 1);
   });
 });
 

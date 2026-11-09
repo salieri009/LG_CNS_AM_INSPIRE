@@ -43,7 +43,7 @@ export const MODELX_LATCH_CASE: CaseSeed = {
     { partId: 'part-mx-fw-latch', partName: '팰컨 윙 래치·액추에이터', officialOrder: 1, checkMethod: '래치 커넥터 체결과 액추에이터 작동음 확인', count: 15, n: 33, chronic: true, agree: 15, procedureId: 'proc-mx-fw-latch', highlightNode: 'latch' },
     { partId: 'part-mx-fw-cincher', partName: '시칭 액추에이터', officialOrder: 2, checkMethod: '닫힘 끝 단계에서 당겨 잠그는 동작 확인', count: 9, n: 33, chronic: false, agree: 9, box: D.cincher },
     { partId: 'part-mx-fw-ecu', partName: '도어 보호 ECU·도어 모듈', officialOrder: 3, checkMethod: 'Toolbox로 도어 모듈 통신·오류 이력 확인', count: 6, n: 33, chronic: false, agree: 6, box: D.doorEcu },
-    { partId: 'part-mx-fw-cal', partName: '도어 캘리브레이션 틀어짐', officialOrder: 4, checkMethod: '수동 캘리브레이션 후 증상 재현 확인', count: 3, n: 14, chronic: false, agree: 3 },
+    { partId: 'part-mx-fw-cal', partName: '도어 캘리브레이션 틀어짐', officialOrder: 4, checkMethod: '수동 캘리브레이션 후 증상 재현 확인', count: 3, n: 33, chronic: false, agree: 3 },
   ],
   procedures: [{
     procedureId: 'proc-mx-fw-latch', procedureVersion: 'MX-2021+ / Latch and Actuator Assembly - Rear - LH', targetPartId: 'part-mx-fw-latch', targetPartName: '팰컨 윙 래치·액추에이터 (LH)',
@@ -73,9 +73,9 @@ export const MODELX_SENSOR_CASE: CaseSeed = {
   vehicle: 'Tesla Model X', model: MODELX,
   code: 'B1A3C', description: '왼쪽 팰컨 윙 도어 초음파 센서 이상 (예시 코드)', symptom: '팰컨 윙 도어가 장애물이 없는데도 중간에 멈추거나 열리다가 되돌아감', searches: 54,
   candidates: [
-    { partId: 'part-mx-us-sensor', partName: '도어 초음파 센서 (리어 LH)', officialOrder: 1, checkMethod: '센서 표면 오염·손상과 커넥터 확인', count: 12, n: 31, chronic: true, agree: 12, procedureId: 'proc-mx-us', highlightNode: 'usSensor' },
-    { partId: 'part-mx-us-module', partName: '초음파 도어 센서 모듈', officialOrder: 2, checkMethod: 'Toolbox로 센서 모듈 진단', count: 7, n: 31, chronic: false, agree: 7, box: { ...D.doorEcu, key: 'usModule', name: '초음파 도어 센서 모듈' } },
-    { partId: 'part-mx-us-harness', partName: '도어 하네스 굴곡부 단선', officialOrder: 3, checkMethod: '힌지 굴곡부 하네스 도통 시험', count: 4, n: 19, chronic: false, agree: 4, box: { key: 'usHarness', name: '도어 하네스', box: [-0.6, 0.97, -0.86, 0.66, 0.02, 0.02], offset: [0, 0, 0], shape: 'harness' } },
+    { partId: 'part-mx-us-sensor', partName: '도어 초음파 센서 (리어 LH)', officialOrder: 1, checkMethod: '센서 표면 오염·손상과 커넥터 확인', count: 10, n: 19, chronic: true, agree: 10, procedureId: 'proc-mx-us', highlightNode: 'usSensor' },
+    { partId: 'part-mx-us-module', partName: '초음파 도어 센서 모듈', officialOrder: 2, checkMethod: 'Toolbox로 센서 모듈 진단', count: 6, n: 19, chronic: false, agree: 6, box: { ...D.doorEcu, key: 'usModule', name: '초음파 도어 센서 모듈' } },
+    { partId: 'part-mx-us-harness', partName: '도어 하네스 굴곡부 단선', officialOrder: 3, checkMethod: '힌지 굴곡부 하네스 도통 시험', count: 3, n: 19, chronic: false, agree: 3, box: { key: 'usHarness', name: '도어 하네스', box: [-0.6, 0.97, -0.86, 0.66, 0.02, 0.02], offset: [0, 0, 0], shape: 'harness' } },
   ],
   procedures: [{
     procedureId: 'proc-mx-us', procedureVersion: 'MX-2021+ / Sensor - Ultrasonic - Rear Door - LH (Manual)', targetPartId: 'part-mx-us-sensor', targetPartName: '도어 초음파 센서 (리어 LH)',

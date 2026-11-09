@@ -13,7 +13,7 @@ npm ci
 npm run dev -- --port 5180 --strictPort
 ```
 
-공개 저장소라 별도 권한 없이 받을 수 있습니다. 패키지 최초 설치 시 인터넷 연결이 필요합니다. 아직 머지되지 않은 최신 화면은 PR 브랜치(`feature/repair-flow`, 리뷰 반영은 `fix/review-followups`)로 전환해서 확인합니다.
+공개 저장소라 별도 권한 없이 받을 수 있습니다. 패키지 최초 설치 시 인터넷 연결이 필요합니다.
 
 서버 실행 후 브라우저에서 다음 주소에 접속합니다. 터미널을 유지하고, 종료할 때는 `Ctrl+C`를 누릅니다.
 
@@ -46,7 +46,7 @@ PR 브랜치를 보려면 `git switch --track origin/fix/review-followups`처럼
 
 현재 시연은 Tesla Model 3(도어 래치, 헤드램프, 12V 배터리, 리졸버)와 Model X(LV 배터리, 팰컨 윙 래치, 도어 초음파 센서, 충전 포트) 케이스를 포함합니다 (PR #6 이후). 모든 차량·후보에 정비 절차가 준비된 것은 아닙니다. 도어 상세 외 일부 부품은 위치 설명용 상자로 표현합니다.
 
-절차·토크·그림은 Tesla Model 3·Model X Service Manual을 참고하며, 고장코드 번호·VIN·관측 비율·정비 시간·팁 등은 예시 데이터입니다. 실차 진단·정비에 사용하지 않습니다. 기록은 목 API 상태로 브라우저 `localStorage`에만 남고(PR #9 이후, 같은 브라우저의 창끼리 공유), 팀원 간에는 공유되지 않습니다. 시연 전 초기화는 개발자 도구에서 `localStorage.removeItem('repair-thread-mock-v1')`입니다.
+절차·토크·그림은 Tesla Model 3·Model X Service Manual을 참고하며, 3D 모델은 Sketchfab의 CC BY 4.0 모델(Model 3: dannzjs, Model X: David_Holiday)입니다. 출처 링크는 README 10장에 있습니다. 고장코드 번호·VIN·관측 비율·정비 시간·팁 등은 예시 데이터입니다. 실차 진단·정비에 사용하지 않습니다. 기록은 목 API 상태로 브라우저 `localStorage`에만 남고(PR #9 이후, 같은 브라우저의 창끼리 공유), 팀원 간에는 공유되지 않습니다. 시연 전 초기화는 개발자 도구에서 `localStorage.removeItem('repair-thread-mock-v1')`입니다.
 
 ## 검증
 

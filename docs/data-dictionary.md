@@ -1,0 +1,24 @@
+# 데이터 사전
+> 원본: [기획서 12장](./planning.md) · 2026-11-09 기준 초안. 팀 확정 전 변경될 수 있음
+
+
+12-2 그림은 개념 요약이고, 실제 테이블은 아래 기준. 저장소 배치는 C4 기준 제안.
+
+| 테이블 | 주요 컬럼 | 설명 | 소유 서비스 / 저장소 |
+| --- | --- | --- | --- |
+| VEHICLE\_PROFILE | manufacturer\_id, model\_year\_spec, config\_revision | 사양 버전 단위 | 생산 연동 / 생산 DB |
+| VEHICLE | profile\_id, vin\_lookup\_hmac (UK), production\_date, plant\_line | VIN 원문 대신 HMAC 조회 키 | 생산 연동 / 생산 DB |
+| PART | part\_number, display\_name | 부품 | 생산 연동 / 생산 DB |
+| DIAGNOSTIC\_RULE | profile\_id, dtc\_code, candidate\_part\_id, procedure\_id, official\_order, check\_method | 고장코드별 공식 점검 순서 | 진단 (참조 데이터, 시드로 적재) |
+| PROCEDURE | profile\_id, target\_part\_id, asset\_id, version, source\_ref, access\_level, standard\_minutes | 정비 절차와 표준 시간 | 3D 가이드 |
+| PROCEDURE\_STEP | step\_order, phase, fastener\_type, requires\_hv\_ack, highlight\_nodes, fallback\_image\_key | 단계별 체결 방식, 고전압 확인, 강조 부품, 2D 대체 | 3D 가이드 |
+| MODEL\_ASSET | version, object\_key, mesh\_manifest | 3D 모델 파일 | 3D 가이드 / 3D 모델 저장소 |
+| KNOWLEDGE\_ENTRY | step\_id, author\_id, parent\_id, entry\_type, body, visibility | 정비사 팁, 기술 문의, 제조사 답변 (답글 구조) | 3D 가이드 |
+| ATTACHMENT | entry\_id, object\_key, media\_type | 팁 사진 | 3D 가이드 / 3D 모델 저장소 |
+| APP\_USER | organization\_id, role, clearance\_level | 조직·역할·권한 등급 | Gateway 인증 |
+| REPAIR\_JOB | vehicle\_id, profile\_id, technician\_id, status, symptoms, data\_origin, completion\_fingerprint | 정비 작업. 시연/실제 구분, 완료 중복 방지 키 | 정비 기록 / 정비 DB |
+| JOB\_DTC\_RESULT | dtc\_code, outcome, actual\_cause\_part\_id, cause\_category | 고장코드별 실제 원인 | 정비 기록 / 정비 DB |
+| JOB\_TASK | procedure\_id, procedure\_version, actual\_minutes, standard\_minutes\_snapshot, module\_replaced, replaced\_parts | 실제 작업 시간·모듈 교체 | 정비 기록 / 정비 DB |
+| STEP\_RECORD | state, safety\_ack\_user\_id, safety\_ack\_at, difficulty\_code, difficulty\_note | 단계 진행, 고전압 확인, 막힘 | 정비 기록 / 정비 DB |
+
+서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음 (예: REPAIR\_JOB.vehicle\_id는 생산 연동 서비스의 VEHICLE id). 분석 서비스는 테이블 없이 정비 기록 서비스의 집계 조회로 계산.

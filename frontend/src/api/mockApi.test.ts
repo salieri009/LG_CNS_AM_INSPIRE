@@ -97,3 +97,37 @@ describe('mockApi · 여러 케이스', () => {
     expect(task.parts?.length).toBeGreaterThan(0);
   });
 });
+
+describe('mockApi · 차종별 절차', () => {
+  let api: RepairThreadApi;
+  beforeEach(() => { api = createMockApi({ delayMs: 0 }); });
+
+  it('같은 B0F71이라도 Model X는 Model X 절차(9단계)와 Model X 3D 모델이 온다', async () => {
+    const x = await api.lookupVehicle({ vin: '7SAXCBE50NF000000' });
+    expect(x.model).toBe('Tesla Model X');
+    const jx = await api.createRepairJob({ vehicleId: x.vehicleId, dtcCodes: ['B0F71'], symptoms: [] });
+    const tx = await api.createTask(jx.jobId, jx.candidates[0].partId);
+    expect(tx.steps).toHaveLength(9);
+    expect(tx.model.assetUrl).toContain('model-x');
+
+    const m3 = await api.lookupVehicle({ vin: '5YJ3E1EA0JF000000' });
+    const j3 = await api.createRepairJob({ vehicleId: m3.vehicleId, dtcCodes: ['B0F71'], symptoms: [] });
+    const t3 = await api.createTask(j3.jobId, j3.candidates[0].partId);
+    expect(t3.steps).toHaveLength(5);
+    expect(t3.model.assetUrl).toContain('model3');
+  });
+
+  it('B1A24도 Model X는 팰컨 윙 래치 절차(10단계)로, Model 3는 리어 도어 래치 절차(7단계)로 온다', async () => {
+    const x = await api.lookupVehicle({ vin: '7SAXCBE50NF000000' });
+    const jx = await api.createRepairJob({ vehicleId: x.vehicleId, dtcCodes: ['B1A24'], symptoms: [] });
+    expect((await api.createTask(jx.jobId, jx.candidates[0].partId)).steps).toHaveLength(10);
+    const m3 = await api.lookupVehicle({ vin: '5YJ3E1EA0JF000000' });
+    const j3 = await api.createRepairJob({ vehicleId: m3.vehicleId, dtcCodes: ['B1A24'], symptoms: [] });
+    expect((await api.createTask(j3.jobId, j3.candidates[0].partId)).steps).toHaveLength(7);
+  });
+
+  it('Model X에 없는 고장코드는 거절한다', async () => {
+    const x = await api.lookupVehicle({ vin: '7SAXCBE50NF000000' });
+    await expect(api.createRepairJob({ vehicleId: x.vehicleId, dtcCodes: ['B1C12'], symptoms: [] })).rejects.toThrow('등록되지 않은');
+  });
+});

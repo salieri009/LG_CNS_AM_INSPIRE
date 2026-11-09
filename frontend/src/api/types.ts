@@ -22,7 +22,12 @@ export interface PartBox {
   box: [number, number, number, number, number, number];
   /** 떼어 냈을 때 빠지는 방향과 거리 */
   offset: [number, number, number];
+  /** 3D에서 그릴 모양. surface는 따로 그리지 않고 실제 차체의 그 범위를 색칠한다 */
+  shape?: PartShape;
+  /** panel을 실제 윤곽(차량 좌표 x,y 점들)대로 만든다. 문처럼 사각형이 아닌 판 */
+  outline?: [number, number][];
 }
+export type PartShape = 'surface' | 'panel' | 'tub' | 'module' | 'battery' | 'connector' | 'bolts' | 'clip' | 'drum' | 'harness' | 'wiper' | 'regulator' | 'latch';
 export interface ProcedureSummary { steps: number; minutes: number; requiresHv: boolean; heroImage?: string }
 export interface Candidate {
   partId: string;
@@ -83,6 +88,8 @@ export interface RepairTask {
   partSet: 'door-rl' | 'boxes';
   parts?: PartBox[];
   steps: ProcedureStep[];
+  /** 장착 뒤 꼭 해야 할 일 (매뉴얼 기준). 결과 기록 전에 확인한다 */
+  afterSteps?: string[];
 }
 
 export interface KnowledgeEntry {
@@ -103,7 +110,10 @@ export interface CompletionRequest {
   moduleReplaced: boolean;
   memo: string;
   memoPublic: boolean;
+  /** 단계별 기록 (job_step_log): 자동 측정한 시작·끝과 막힘 여부 */
+  stepLogs?: StepLog[];
 }
+export interface StepLog { stepId: string; startedAt: number; endedAt?: number; blocked: boolean; reason?: string }
 export interface CompletionResult { jobId: string; duplicated: boolean }
 
 export interface PartMetric {
@@ -123,6 +133,8 @@ export interface RepairThreadApi {
   createRepairJob(req: CreateRepairJobRequest): Promise<RepairJob>;
   createTask(jobId: string, partId: string): Promise<RepairTask>;
   getStepKnowledge(stepId: string): Promise<KnowledgeEntry[]>;
+  /** 단계 팁 남기기 (knowledge_entry). 공개한 팁만 다른 정비사에게 보인다 */
+  addKnowledge(stepId: string, body: string, isPublic: boolean): Promise<KnowledgeEntry>;
   ackStep(taskId: string, stepId: string): Promise<StepAck>;
   completeJob(jobId: string, req: CompletionRequest): Promise<CompletionResult>;
   getManufacturerMetrics(): Promise<ManufacturerMetrics>;

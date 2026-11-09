@@ -553,6 +553,7 @@ flowchart LR
 
 | # | 처음 생각 | 확인한 내용 | 바뀐 판단 |
 | --- | --- | --- | --- |
+| D22 | C4 서비스 5개, 배포 방식 미정 | 팀: 나눌 수 있는 서비스는 나누고 Kubernetes로 관리, 동시 접속이 적으니 늘었다 줄었다 하는 구조 | auth·knowledge 분리, 웹앱·제조사 mock까지 Deployment 11개. EKS Auto Mode + HPA + KEDA cron + Aurora Serverless v2로 파드·노드·DB가 사용량 따라 늘고 줌 (14장). 팁·제조사 답변(API 4)은 3D 가이드에서 knowledge 서비스로 옮김 |
 | D21 | Miro 01: 단일 REST 백엔드 + 논리 모듈 4개 | 팀 C4 다이어그램: API Gateway + 서비스 5개 + 저장소 4개 + 외부 제조사 시스템 | MSA 확정 (17시 24분). 팁·제조사 답변은 3D 가이드 서비스, 분석은 별도 DB 없이 정비 DB 집계, 메모 정리·개선 후보는 규칙 기반 |
 | D20 | 원인 후보를 고장 다발 확률 순으로 정렬, 서비스 3개로 분리, 정비사 팁만 | 팀 설계 보드 01\~06: 공식 진단 순서 우선, 관측 비율은 실제 고장 발생률이 아님, 단일 REST 백엔드, 제조사 기술 문의·답변 | 점검 순서는 공식 순서 기본 + 관측 비율·n을 근거로 표시(분모는 원인 확인 완료 건만). 백엔드는 논리 모듈 4개. 단계에 제조사 답변 추가. 시범은 사양 1종 + 대표 코드 1개 |
 | D19 | LLM으로 메모 구조화, 팁 요약, 개선 제안 초안 작성 | 팀: 우리 시나리오에는 AI가 없음. 핵심 루프는 원래 통계·규칙 기반 | LLM 전면 제외. 기록은 선택형 입력으로 구조화, 익명화는 규칙 기반, 개선 제안은 규칙 템플릿, 팁은 원문 표시 |
@@ -644,6 +645,8 @@ flowchart LR
 개발팀이 이 섹션만 보고 화면·API·DB를 나눠 만들 수 있게 5장으로 정리함. 기술 스택은 팀 확정 전이라 이름 대신 역할로 표기함.
 
 ### 12-1. 시스템 아키텍처 (팀 C4 다이어그램 기준)
+
+> 배포 기준으로는 auth와 knowledge를 더 나눔 (D22). 서비스별 배포 단위는 [14-1](#14-1-서비스-분리-d22) 참고.
 
 ```mermaid
 flowchart TB
@@ -876,3 +879,290 @@ stateDiagram-v2
 | STEP\_RECORD | state, safety\_ack\_user\_id, safety\_ack\_at, difficulty\_code, difficulty\_note | 단계 진행, 고전압 확인, 막힘 | 정비 기록 / 정비 DB |
 
 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음 (예: REPAIR\_JOB.vehicle\_id는 생산 연동 서비스의 VEHICLE id). 분석 서비스는 테이블 없이 정비 기록 서비스의 집계 조회로 계산.
+
+## 13. 테스트케이스 기획
+
+시연 전에 반드시 통과시킬 테스트는 P0 24개임 (시연 경로, 고전압 잠금, 권한, 익명화, 통계 경계값, 배포 검증). P1·P2는 남는 시간만큼 진행하고, 상태 열은 팀이 직접 바꿈. 도구와 기준 숫자는 제안이라 팀 확정이 필요함.
+
+### 13-1. 테스트 레벨
+
+| 레벨 | 대상 | 도구 (제안) | 통과 기준 (제안) |
+| --- | --- | --- | --- |
+| 단위 | Domain Service: VinParser, DtcAnalyzer, FaultStatisticsCalculator, RepairRecommendationEngine, RepairDifficultyCalculator, 메모 익명화 규칙 | JUnit 5 + AssertJ | domain 패키지 라인 커버리지 70% 이상 |
+| 통합 | 서비스 하나의 Controller → Repository, 트랜잭션, DB 제약 | Spring Boot Test + Testcontainers (DB 엔진 확정 후) | API 7개 정상·예외 응답 |
+| 계약 | 서비스 간 ID 참조 호출: 진단→생산 연동, 진단→정비 기록, 분석→정비 기록, 정비 기록→knowledge | WireMock 스텁 (또는 Spring Cloud Contract) | 응답 필드가 바뀌면 빌드 실패 |
+| E2E | 데모 시나리오 5단계 (6장) | Playwright | 시드 초기화 후 3회 연속 통과 |
+| 배포 검증 | EKS 파드, Ingress, 롤링 업데이트 (14장) | kubectl, curl 스모크 | 13-5 P0 전부 통과 |
+
+### 13-2. 테스트 데이터 (5장 Mock 기준)
+
+| 데이터 | 양 | 쓰는 곳 |
+| --- | --- | --- |
+| 가상 차량 PBV-X VIN | 50대 (사양 3종, 생산 시기 3구간, 라인 2개) | A①, B② |
+| 고장코드 | 대표 1개 + 보조 9개 | A①, A②, B③ |
+| 과거 정비 기록 | 300건, 특정 사양·코드에 원인 집중 패턴 포함 | A② 통계, B③ 탐지 |
+| 분해 단계 | 6단계 (고전압 확인 단계 포함) | A③ |
+| 공식 설명·팁 | 120건 | A③ 툴팁 정렬 |
+
+경계값 테스트는 시연용 300건과 분리한 픽스처를 씀: 같은 사양·코드의 원인 확인 완료 건 29건/30건, 부품 유효 n 9건/10건.
+
+### 13-3. 정비사 대시보드 (A) 테스트케이스
+
+| ID | 기능 | 조건 | 기대 결과 | 레벨 | 우선 | 상태 |
+| --- | --- | --- | --- | --- | --- | --- |
+| TC-A1-01 | A① VIN | 등록된 17자리 VIN | 차종·사양·생산 시기·공장 표시 (API 1, vehicleId·profileId) | E2E | P0 | 미실행 |
+| TC-A1-02 | A① VIN | 16자리, 또는 I·O·Q 포함 | "17자리 확인" 안내, 서버 요청 안 보냄 | 단위 | P1 | 미실행 |
+| TC-A1-03 | A① VIN | 형식은 맞지만 미등록 VIN | 미등록 안내, 차종 표준 정보만 표시 | 통합 | P1 | 미실행 |
+| TC-A1-04 | A① 고장코드 | 코드 3개 + 증상 2개 | 한 정비 건에 모두 저장 (API 2, jobId) | 통합 | P0 | 미실행 |
+| TC-A1-05 | A① 고장코드 | 형식 오류 (P04, X1234) | 정규화 실패 안내, 저장 안 함 | 단위 | P1 | 미실행 |
+| TC-A1-06 | A① 고장코드 | 같은 코드 두 번 입력 | 하나로 합쳐 저장 | 단위 | P2 | 미실행 |
+| TC-A2-01 | A② 우선순위 | 원인 확인 완료 48건 | 공식 순서 + 관측 비율·분자·n 표시 | E2E | P0 | 미실행 |
+| TC-A2-02 | A② 경계 | 같은 사양·코드 완료 29건 | "참고용" 표시, 공식 순서만 기준 | 단위 | P0 | 미실행 |
+| TC-A2-03 | A② 경계 | 완료 30건 | 비율·분자·n 표시 | 단위 | P0 | 미실행 |
+| TC-A2-04 | A② 분모 | 원인 미확인 완료 건, 진행 중 건을 섞음 | 둘 다 분모에서 빠짐 | 단위 | P0 | 미실행 |
+| TC-A2-05 | A② 공식 순서 | 관측 비율 1위가 공식 순서 3위 | 필수 공식 선행 단계가 맨 앞 유지 | 단위 | P0 | 미실행 |
+| TC-A2-06 | A② 사양 분리 | 다른 사양 기록 100건 추가 | 집계에 섞이지 않음 | 단위 | P1 | 미실행 |
+| TC-A2-07 | A② 콜드 스타트 | 기록 0건 | 공식 순서만, "표본 부족" | 통합 | P1 | 미실행 |
+| TC-A3-01 | A③ 3D 경로 | 1순위 후보 선택 (API 3) | 6단계 재생, 단계별 체결 방식·예상 시간 | E2E | P0 | 미실행 |
+| TC-A3-02 | A③ 강조 | 단계 클릭 | 탈거 부품 강조 + 부품명·단계 번호 텍스트 | E2E | P1 | 미실행 |
+| TC-A3-03 | A③ 고전압 | 확인 없이 "다음" | 다음 단계 잠금, 경고 배너 | E2E | P0 | 미실행 |
+| TC-A3-04 | A③ 고전압 | 화면을 우회해 확인 없이 다음 단계 API 직접 호출 | 거부, 단계 상태 안 바뀜 | 통합 | P0 | 미실행 |
+| TC-A3-05 | A③ 고전압 | 확인 제출 (API 5) | 사용자·절차 버전·확인 시각 저장, 다음 단계 허용 | 통합 | P0 | 미실행 |
+| TC-A3-06 | A③ 3D 실패 | 모델 파일 없음, WebGL 미지원 | 같은 절차 2D 이미지·텍스트로 대체 | E2E | P1 | 미실행 |
+| TC-A3-07 | A③ 버전 | 사양과 절차·모델 버전 불일치 | 미지원 안내, 다른 절차 대입 안 함 | 통합 | P1 | 미실행 |
+| TC-A3-08 | A③ 단계 팁 | 단계 팁 조회 (API 4) | 공식 설명 1줄 고정, 팁 상위 3개, 제조사 답변이 라벨로 구분 | 통합 | P1 | 미실행 |
+| TC-A3-09 | A③ 팁 신고 | 신고 3건 | 팁 숨김 | 통합 | P2 | 미실행 |
+| TC-A3-10 | A③ 추천 | 같은 정비사가 같은 팁 두 번 추천 | 1회만 반영 | 통합 | P2 | 미실행 |
+| TC-A4-01 | A④ 기록 | 원인 부품·시간·막힌 단계·모듈 교체 제출 (API 6) | 한 트랜잭션 저장, A② 해당 n이 1 증가 | E2E | P0 | 미실행 |
+| TC-A4-02 | A④ 재전송 | 같은 요청 두 번 | 한 건만 저장 (`completion_fingerprint`) | 통합 | P0 | 미실행 |
+| TC-A4-03 | A④ 롤백 | 저장 중간에 실패 주입 | 전부 롤백, 부분 저장 없음 | 통합 | P1 | 미실행 |
+| TC-A4-04 | A④ 익명화 | 메모에 "010-1234-5678" | 전화번호를 지운 뒤 저장 | 단위 | P0 | 미실행 |
+| TC-A4-05 | A④ 메모 공개 | 공개 동의 off / on | off는 비공개, on일 때만 knowledge에 팁 등록 | 계약 | P1 | 미실행 |
+| TC-A4-06 | A④ 권한 | 다른 정비사의 정비 건 완료 요청 | 403, 저장 안 함 | 통합 | P0 | 미실행 |
+| TC-A4-07 | A④ 검증 | 소요 시간 0 이하 | 검증 실패 안내 | 단위 | P1 | 미실행 |
+
+### 13-4. 공장 대시보드 (B)·권한 테스트케이스
+
+| ID | 기능 | 조건 | 기대 결과 | 레벨 | 우선 | 상태 |
+| --- | --- | --- | --- | --- | --- | --- |
+| TC-B1-01 | B① 갱신 | A④ 1건 제출 후 | 평균 시간·초과율·TOP N 갱신 (API 7) | E2E | P0 | 미실행 |
+| TC-B1-02 | B① 경계 | 부품 유효 n 9건 / 10건 | 9건은 "표본 부족" 회색·순위 제외, 10건은 순위 포함 | 단위 | P0 | 미실행 |
+| TC-B1-03 | B① 난이도 지수 | 고정 입력 (시간 편차·모듈 교체·막힘) | 0.5·0.3·0.2 가중 합과 같은 값 (8-3) | 단위 | P1 | 미실행 |
+| TC-B2-01 | B② 비교 | Mock 사양 3종 | 카고 사양만 정비 시간 2배인 패턴이 드러남 | E2E | P1 | 미실행 |
+| TC-B3-01 | B③ 탐지 | Mock 300건 | 심어 둔 원인 집중 패턴을 "검토 필요"로 표시, 단정 문구 없음 | 통합 | P1 | 미실행 |
+| TC-B4-01 | B④ 안건 | 난이도 TOP N 진입 | DRAFT 생성, 담당자만 REVIEW·ADOPTED·HOLD로 전환, 자동 공정 변경 없음 | 통합 | P2 | 미실행 |
+| TC-SEC-01 | 인증 | 토큰 없이 API 호출 | 401 | 통합 | P0 | 미실행 |
+| TC-SEC-02 | 제조사 범위 | 다른 제조사 지표 요청 | 403 | 통합 | P0 | 미실행 |
+| TC-SEC-03 | 식별정보 | metrics 응답 검사 | VIN·정비소·정비사 식별자 없음 | 계약 | P0 | 미실행 |
+| TC-SEC-04 | 권한 등급 | L1이 상세 분해 순서·접착 사양 요청 | 요약만, 접착 사양 비공개 (8-1) | 통합 | P1 | 미실행 |
+| TC-SEC-05 | 파일 | 권한 없이 모델·첨부 URL 직접 접근 | 차단 (만료된 서명 URL 포함) | 통합 | P1 | 미실행 |
+| TC-DATA-01 | 데이터 구분 | 시연 데이터 조회 | `data_origin` 구분 표시 | E2E | P2 | 미실행 |
+
+### 13-5. 배포 검증 (Kubernetes)
+
+14장 EKS 배포 직후와 시연 직전에 돌림.
+
+| ID | 항목 | 조건 | 기대 결과 | 우선 | 상태 |
+| --- | --- | --- | --- | --- | --- |
+| TC-K8S-01 | 파드 기동 | 배포 직후 | 모든 Deployment Ready, readiness probe 통과 | P0 | 미실행 |
+| TC-K8S-02 | Ingress 라우팅 | CloudFront 주소로 /, /factory, /api 호출 | 웹앱 2개와 gateway로 각각 연결 | P0 | 미실행 |
+| TC-K8S-03 | 서비스 간 호출 | diagnosis가 production·record 호출 | 클러스터 DNS로 성공 | P0 | 미실행 |
+| TC-K8S-04 | NetworkPolicy | analytics 파드에서 production 직접 호출 | 차단 | P1 | 미실행 |
+| TC-K8S-05 | 롤링 업데이트 | 레플리카 1개 서비스의 이미지 태그를 바꿔 배포하는 동안 데모 요청 반복 | 5xx 없이 교체 (maxUnavailable 0) | P1 | 미실행 |
+| TC-K8S-06 | 자가 복구 | diagnosis 파드 강제 삭제 | 새 파드 기동 후 요청 정상 | P1 | 미실행 |
+| TC-K8S-07 | 시크릿 | 매니페스트·이미지 검사 | DB 비밀번호·VIN HMAC 키가 평문으로 없음 | P0 | 미실행 |
+| TC-K8S-08 | HPA 확장·축소 | diagnosis에 부하를 줘 CPU 60% 초과 | 레플리카가 늘고, 부하를 멈추면 5분 뒤 1개로 돌아옴 | P1 | 미실행 |
+| TC-K8S-09 | 노드 확장·통합 | 대기 파드를 만들었다가 지움 | 노드가 추가됐다가 빈 노드 통합으로 줄어듦 | P2 | 미실행 |
+| TC-K8S-10 | DB 재개 | Aurora 일시정지 상태에서 첫 요청 | 타임아웃 없이 응답 (재개 약 15초) | P1 | 미실행 |
+| TC-K8S-11 | 시간대 스케일 | 시연 시간 밖 / 안 | web-factory·analytics·mock이 밖에서는 0개, 시연 시간에는 1개 | P2 | 미실행 |
+
+### 13-6. 시연 리허설 순서
+
+1. 시드 초기화 Job 실행 (Mock 기록 300건 재적재, 경계값 픽스처는 제외)
+2. 배포 검증 P0 (TC-K8S-01·02·03·07)
+3. E2E 5단계: TC-A1-01 → TC-A2-01 → TC-A3-01·A3-03 → TC-A4-01 → TC-B1-01
+4. 3회 연속 통과하면 시연 확정. 실패하면 그 단계의 P0 단위·통합 테스트부터 다시
+
+일정 (제안): 11-09 밤 단위·계약 P0, 11-10 오전 배포 검증과 E2E, 시연 30분 전 리허설 1회.
+
+## 14. AWS 배포 기획 (Kubernetes · EKS)
+
+서비스를 Deployment 11개로 나눠 서울 리전(ap-northeast-2) EKS Auto Mode 클러스터 하나에서 관리하고, 파드·노드·DB가 사용량에 따라 늘고 줄게 함 (14-3). 사용자 진입은 CloudFront 하나, 3D 모델은 S3, DB는 Aurora Serverless v2에 서비스별 스키마. 사양과 숫자는 해커톤 시연 기준 제안이고, DB 엔진(MySQL·PostgreSQL 호환)과 프론트 기술은 아직 미정임.
+
+### 14-1. 서비스 분리 (D22)
+
+12-1의 서비스 5개에서 auth와 knowledge를 더 나누고, 웹앱 2개와 제조사 시스템 대역(mock)도 파드로 올림.
+
+| Deployment | 역할 | 12-1 기준 | 저장소 | 레플리카 (최소\~최대) |
+| --- | --- | --- | --- | --- |
+| web-mechanic | 정비사 웹앱 정적 파일 (Nginx) | 정비사 웹앱 | 없음 | 1\~3 |
+| web-factory | 공장 대시보드 정적 파일 (Nginx) | 공장 대시보드 | 없음 | 0\~2 (시연 시간만 켬) |
+| gateway | 라우팅, 토큰 검증, 제조사 범위 전달 | API Gateway | 없음 | 1\~3 |
+| auth (분리) | 로그인, 토큰 발급, 권한 등급 L1\~L3 | Gateway 인증 | auth 스키마 (APP\_USER) | 1\~2 |
+| diagnosis | A① A② 원인 후보·점검 순서 | 진단 | 없음 (호출만, 공식 순서는 시드) | 1\~4 |
+| guide | A③ 분해 경로, 단계, 고전압 확인 | 3D 가이드 | guide 스키마 (PROCEDURE, PROCEDURE\_STEP, MODEL\_ASSET) + S3 | 1\~4 |
+| knowledge (분리) | 단계 팁, 제조사 답변, 추천, 신고, 사진 (API 4) | 3D 가이드의 Step Knowledge Manager | knowledge 스키마 (KNOWLEDGE\_ENTRY, ATTACHMENT, VOTE) + S3 | 1\~2 |
+| record | A④ 정비 결과, 집계 조회 API | 정비 기록 | record 스키마 (정비 DB) | 1\~3 |
+| analytics | B①\~④ 지표 | 분석 | 없음 (record 집계 조회) | 0\~2 (시연 시간만 켬) |
+| production | 생산 이력·사양 조회, 접근 통제 | 생산 연동 | production 스키마 (생산 DB) | 1\~2 |
+| manufacturer-mock | 외부 제조사 시스템 대역, mock 네임스페이스 | 제조사 시스템 (외부) | 없음 (고정 응답) | 0\~1 (시연 시간만 켬) |
+
+- **auth를 나눈 이유**: 권한 등급 규칙(8-1)을 한 곳에 두고 gateway는 토큰 검증과 라우팅만 함
+- **knowledge를 나눈 이유**: 팁은 쓰기·추천·신고가 잦은 커뮤니티 기능이고, 3D 경로는 읽기 위주에 안전 규칙이 붙음. 배포 주기와 장애 범위를 따로 둠. 대신 웹앱이 단계와 팁 API를 병렬로 호출함 (D21의 한 번 조회 이점은 포기)
+- **나누지 않은 것**: record는 완료 저장을 한 트랜잭션으로 지켜야 해서 하나로 둠 (TC-A4-02·03). diagnosis·analytics는 DB가 없는 계산 서비스라 더 쪼갤 이유가 없음
+
+### 14-2. AWS 구성 요소
+
+| 구역 | 리소스 | 설정 (제안) |
+| --- | --- | --- |
+| 엣지 | CloudFront | 단일 진입점, 기본 도메인으로 HTTPS. `/models/*`는 S3, 나머지는 ALB |
+| 엣지 | S3 (repair-thread-assets) | 3D 모델, 2D 대체 이미지, 팁 사진. 퍼블릭 차단, 읽기는 CloudFront OAC로만, 업로드는 서명 URL |
+| VPC 10.0.0.0/16 | 퍼블릭 서브넷 2개 (2 AZ) | ALB, NAT Gateway 1개. ALB 보안 그룹은 CloudFront origin-facing 관리형 접두사 목록만 허용 |
+| VPC | 프라이빗 앱 서브넷 2개 | EKS Auto Mode 노드. 인스턴스 종류와 대수는 파드 요청량에 맞춰 자동, Spot 우선 (14-3) |
+| VPC | 프라이빗 데이터 서브넷 2개 | Aurora Serverless v2 클러스터 1개, 스키마 5개 (auth, guide, knowledge, record, production). 스키마마다 DB 계정을 따로 두어 다른 서비스 테이블은 권한으로 막음 |
+| 클러스터 | EKS Auto Mode | Load Balancer Controller·VPC CNI·CoreDNS를 AWS가 관리. Ingress 하나로 ALB 생성: `/` web-mechanic, `/factory` web-factory, `/api` gateway |
+| 클러스터 | 네임스페이스 | repair-thread (앱 10개 + 시드 Job), mock (manufacturer-mock) |
+| 관리형 | ECR | 서비스별 리포지토리, 이미지 태그 = 커밋 SHA |
+| 관리형 | Secrets Manager | DB 계정, 토큰 서명 키, VIN HMAC 키. 파드는 EKS Pod Identity로 자기 것만 읽음 |
+| 관리형 | CloudWatch | 컨테이너 로그, ALB 5xx 알람 |
+
+### 14-3. 탄력 설계 (사용량 따라 늘고 줄기)
+
+동시 접속이 적다는 전제로, 평소에는 최소로 떠 있다가 요청이 몰릴 때만 늘림. 파드, 노드, DB 세 층이 각각 따로 늘고 줌.
+
+| 층 | 늘리는 기준 | 줄이는 방식 | 평소 최소 | 도구 |
+| --- | --- | --- | --- | --- |
+| 파드 | CPU 사용률 60% 초과 시 레플리카 추가 (14-1 최대값까지) | 부하가 내려가고 5분 뒤 감소 | 서비스당 1개 | HPA |
+| 파드 (시간대) | 시연·리허설 시간대에만 켬 | 그 외 시간 0개 | web-factory, analytics, manufacturer-mock 0개 | KEDA cron 스케일러 |
+| 노드 | 대기(Pending) 파드가 생기면 크기에 맞는 EC2 추가, Spot 우선 | 비거나 덜 쓰는 노드를 비우고 통합 | 파드가 들어갈 만큼 (보통 1\~2대) | EKS Auto Mode (AWS 관리형 Karpenter) |
+| DB | 쿼리 부하에 따라 ACU 증가 | 유휴 시간이 길면 0 ACU로 일시정지 (5분\~1일 설정) | 0 ACU, 시연일은 0.5 ACU | Aurora Serverless v2 |
+
+- **0으로 안 내리는 것**: 사용자 경로(web-mechanic, gateway, diagnosis, guide, record). Spring Boot 파드는 뜨는 데 수십 초가 걸려 첫 요청이 늦어짐
+- **고정으로 남는 것**: EKS 컨트롤 플레인, ALB, NAT Gateway는 사용량이 0이어도 시간 과금됨 (14-6)
+- **Aurora 재개**: 일시정지 뒤 첫 연결은 보통 약 15초, 24시간 넘게 멈췄으면 30초 이상. 커넥션 타임아웃을 그보다 길게 둠
+- **레플리카 1개인 서비스에는 PodDisruptionBudget을 걸지 않음**: 걸면 노드 통합이 막힘. 무중단 교체는 롤링 업데이트 maxUnavailable 0, maxSurge 1로 해결
+- **Spot 회수**: 회수 알림이 오면 파드가 다른 노드로 옮겨지며 잠깐 끊길 수 있음. 시연일에는 사용자 경로만 온디맨드 NodePool로 고정 (선택)
+
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: diagnosis
+  namespace: repair-thread
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: diagnosis }
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }
+  behavior:
+    scaleDown: { stabilizationWindowSeconds: 300 }
+```
+
+참고: [EKS Auto Mode 모범 사례](https://docs.aws.amazon.com/eks/latest/best-practices/automode.html), [Aurora Serverless v2 자동 일시정지](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-auto-pause.html)
+
+### 14-4. Kubernetes 운영 기준
+
+모든 서비스는 Deployment + ClusterIP Service로 올리고, 서비스 간 호출은 12-1 화살표만 NetworkPolicy로 허용함. 다른 서비스 DB에 직접 붙지 않는다는 원칙을 네트워크(NetworkPolicy)와 DB 계정(스키마 권한) 두 겹으로 지킴.
+
+| 대상 파드 | 들어오는 호출 허용 |
+| --- | --- |
+| gateway, web-mechanic, web-factory | ALB (Ingress) |
+| auth, diagnosis, guide, analytics | gateway |
+| knowledge | gateway, record (공개 동의한 메모의 팁 등록) |
+| record | gateway, diagnosis (과거 이력), analytics (집계 조회) |
+| production | gateway, diagnosis (사양 조회) |
+| manufacturer-mock | production |
+
+- 프로브: readiness `/actuator/health/readiness`, liveness `/actuator/health/liveness` (Spring Boot Actuator)
+- 리소스 requests는 필수 (HPA 사용률과 Auto Mode 노드 크기 계산의 기준). 제안: Spring 서비스 cpu 250m·memory 512Mi, limits memory 1Gi
+- 롤링 업데이트 maxUnavailable 0, maxSurge 1 (TC-K8S-05)
+- ConfigMap: 서비스 주소, 통계 기준값 (A② n 30, B n 10)을 코드 밖으로 뺀
+- NetworkPolicy는 클러스터의 네트워크 정책 기능을 켜야 동작함
+- 매니페스트는 Kustomize: `k8s/base/<서비스>` + `k8s/overlays/demo`
+
+Ingress 하나로 ALB를 만들고 경로로 나눔 (`/factory`는 대시보드를 그 base path로 빌드해야 함):
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: repair-thread
+  namespace: repair-thread
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: { service: { name: gateway, port: { number: 8080 } } }
+          - path: /factory
+            pathType: Prefix
+            backend: { service: { name: web-factory, port: { number: 80 } } }
+          - path: /
+            pathType: Prefix
+            backend: { service: { name: web-mechanic, port: { number: 80 } } }
+```
+
+record는 위 표대로 gateway·diagnosis·analytics만 들어올 수 있음:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: record-ingress
+  namespace: repair-thread
+spec:
+  podSelector: { matchLabels: { app: record } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: gateway } }
+        - podSelector: { matchLabels: { app: diagnosis } }
+        - podSelector: { matchLabels: { app: analytics } }
+      ports:
+        - port: 8080
+```
+
+### 14-5. CI/CD
+
+1. PR: 바뀐 서비스 폴더만 단위·통합·계약 테스트 (13-1, GitHub Actions paths 필터)
+2. main 머지: GitHub Actions가 OIDC로 AWS 역할을 받아 이미지 빌드 → ECR push (태그 = 커밋 SHA). 액세스 키는 저장하지 않음
+3. `kustomize edit set image`로 demo 오버레이 태그 갱신 → `kubectl apply -k k8s/overlays/demo`
+4. `kubectl rollout status` 성공 후 13-5 스모크 (TC-K8S-01·02·03)
+5. 인프라(VPC, EKS, RDS, S3, CloudFront, ECR)는 Terraform. 확장 단계에서는 3번을 Argo CD(GitOps)로 바꿀 수 있음
+
+```text
+repair-thread/
+├── services/   gateway auth diagnosis guide knowledge record analytics production
+├── web/        mechanic factory
+├── mock/       manufacturer
+├── k8s/        base/<서비스>  overlays/demo
+├── infra/      terraform
+└── .github/workflows/
+```
+
+### 14-6. 비용과 리스크
+
+비용은 고정분(EKS 컨트롤 플레인, ALB, NAT Gateway)과 사용량분(노드, Aurora ACU)으로 나눔. 사용량분은 14-3대로 줄어들고, 고정분은 시연이 끝나면 `terraform destroy`로 지움.
+
+| 리스크 | 대응 |
+| --- | --- |
+| EKS 구성이 시간 안에 안 끝남 | 같은 Kustomize 매니페스트를 EC2 1대의 k3s에 apply (Plan B). Ingress만 k3s 기본 Traefik으로 바꿈 |
+| 노드·파드가 늘 때 대기 시간 | 시연 10분 전 워밍업 요청, 사용자 경로는 최소 1개 유지 |
+| Aurora 재개 지연 | 시연일 최소 0.5 ACU, 커넥션 타임아웃 30초 이상 |
+| Spot 회수 | 시연일 사용자 경로는 온디맨드 NodePool (선택) |
+| 이미지 빌드가 느림 | 바뀐 서비스만 빌드, Gradle·Docker 레이어 캐시 |
+| 3D 모델 로딩이 느림 | CloudFront 캐시, 실패하면 2D 대체 (TC-A3-06) |
+| 시연 중 데이터가 꼬임 | 시드 Job으로 언제든 초기화 (13-6) |
+
+### 14-7. 배포 구성도
+
+사용자 요청은 CloudFront를 지나 3D 모델은 S3로, 나머지는 ALB와 Ingress를 거쳐 EKS Auto Mode 노드의 파드로 감. 파드는 프라이빗 서브넷에서 Aurora Serverless v2 스키마에 붙고, 이미지는 GitHub Actions가 ECR에 올린 것을 받음.
+
+![AWS 배포 구성도: CloudFront·S3 엣지, 퍼블릭 서브넷의 ALB·NAT, EKS Auto Mode 파드 11개, Aurora Serverless v2, CI/CD, 관리형 서비스](images/aws-eks.png)

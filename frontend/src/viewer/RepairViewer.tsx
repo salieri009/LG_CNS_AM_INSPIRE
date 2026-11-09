@@ -2,27 +2,36 @@ import { Suspense, useMemo, useRef, type RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Grid, OrbitControls, useGLTF, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { PartBox, RepairTask } from '../api/types';
-import { fitVehicle, rigForDoor } from './geometry';
-import { partState } from './partState';
-import { makeXrayMaterial } from './xray';
+import { doorParts, fitVehicle, rigForDoor, type FitOptions } from './geometry';
+import { partState, type PartState } from './partState';
+import { makeXrayMaterial, setRegions, setStrength, type Region } from './xray';
 import { AnimatedPart } from './DoorParts';
 import { DOOR_PARTS, type DoorPartDef } from './doorPartDefs';
-import { Box } from './primitives';
+import { PartShapeNode } from './shapes';
+import { HEAT, HeatPart, type HeatItem } from './HeatPart';
+import { shapeOf } from './partShape';
 import { DEFAULT_MODEL } from './config';
 import { sceneParts, type CandidateFocus } from './sceneParts';
 
-const VEHICLE_LENGTH = 4.69; // Model 3 전장(m). Model X 모델이 오면 차종 설정으로 옮긴다
 const OVERVIEW = { position: new THREE.Vector3(4.4, 2.6, -6.0), target: new THREE.Vector3(-0.3, 0.55, -0.2) };
 type Vec3 = [number, number, number];
 interface Xform { position: THREE.Vector3; scale: THREE.Vector3 }
 const IDENTITY: Xform = { position: new THREE.Vector3(), scale: new THREE.Vector3(1, 1, 1) };
 
-interface Props { task: RepairTask | null; stepIndex: number; onSelectStep?: (index: number) => void; /** 원인 후보 화면에서 고른 후보 */ candidate?: CandidateFocus }
+interface Props { task: RepairTask | null; stepIndex: number; onSelectStep?: (index: number) => void; /** 원인 후보 화면에서 고른 후보 */ candidate?: CandidateFocus; /** 공장 화면: 난이도로 칠할 부품들 */ heat?: HeatItem[]; onSelectHeat?: (key: string) => void; /** 작업 전 보여 줄 차종 모델 */ model?: { assetUrl: string; meshManifest: Record<string, string> } }
 interface SceneProps extends Props { labelRef: RefObject<HTMLDivElement | null> }
 
-const boxDef = (b: PartBox): DoorPartDef => ({ key: b.key, name: b.name, offset: b.offset, anchor: [b.box[0], b.box[1], b.box[2]], node: <Box s={[b.box[3], b.box[4], b.box[5]]} p={[b.box[0], b.box[1], b.box[2]]} color="#9aa0a8" /> });
+const boxDef = (b: PartBox): DoorPartDef => ({ key: b.key, name: b.name, offset: b.offset, anchor: [b.box[0], b.box[1], b.box[2]], node: <PartShapeNode b={b} /> });
+const STATE_TINT: Record<PartState, { color: THREE.Color; amount: number; pulse: boolean }> = {
+  pending: { color: new THREE.Color('#ffffff'), amount: 0.12, pulse: false },
+  removed: { color: new THREE.Color('#ffffff'), amount: 0, pulse: false },
+  current: { color: new THREE.Color('#ff453a'), amount: 1, pulse: true },
+  target: { color: new THREE.Color('#3d8bff'), amount: 0.9, pulse: false },
+  'target-current': { color: new THREE.Color('#3d8bff'), amount: 1, pulse: true },
+};
 
 /** 실제 차체(X-ray) 위에 정비 부품을 겹쳐 단계별 분해를 보여 주는 3D 뷰어 (A③) */
 export function RepairViewer(props: Props) {
@@ -59,32 +68,61 @@ function LoadingText() {
   return <p style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', margin: 0, color: 'var(--muted)', fontSize: 12, pointerEvents: 'none' }}>차량 3D 불러오는 중… {Math.round(progress)}%</p>;
 }
 
-function Scene({ task, stepIndex, onSelectStep, labelRef, candidate }: SceneProps) {
-  const model = task?.model ?? DEFAULT_MODEL;
+function Scene({ task, stepIndex, onSelectStep, labelRef, candidate, model: picked, heat = [], onSelectHeat }: SceneProps) {
+  const model = task?.model ?? picked ?? DEFAULT_MODEL;
   const { scene } = useGLTF(model.assetUrl);
-  const m = model.meshManifest;
-  const { car, rig } = useMemo(() => {
-    const body = makeXrayMaterial('#d8e4ff', 0.5), door = makeXrayMaterial('#ffffff', 0.75);
-    const edge = new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.09 });
-    const wrap = fitVehicle(scene.clone(true), { length: VEHICLE_LENGTH, hubs: { frontLeft: m.hubFrontLeft, rearLeft: m.hubRearLeft, frontRight: m.hubFrontRight } });
-    const doorNode = wrap.getObjectByName(m.door);
+  const m: Record<string, string> = model.meshManifest;
+  const { car, rig, doorBoxes, mats } = useMemo(() => {
+    const body = makeXrayMaterial('#d8e4ff', 0.5), door = makeXrayMaterial('#d8e4ff', 0.5);
+    const edge = new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: m.smooth ? 0.045 : 0.09 });
+    // 바퀴 허브 이름이 있으면 그걸로, 없으면(STL 기반 모델) 원본 축으로 방향을 맞춘다
+    const fit = m.hubFrontLeft
+      ? { hubs: { frontLeft: m.hubFrontLeft, rearLeft: m.hubRearLeft, frontRight: m.hubFrontRight } }
+      : { axes: { forward: m.forward, left: m.left } as FitOptions['axes'] };
+    const wrap = fitVehicle(scene.clone(true), { length: Number(m.length ?? 4.69), ...fit });
+    const doorNode = m.door ? wrap.getObjectByName(m.door) : undefined;
     const inDoor = (o: THREE.Object3D) => { for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p === doorNode) return true; return false; };
     const meshes: THREE.Mesh[] = [];
     wrap.traverse(o => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
-    meshes.forEach(o => { o.material = inDoor(o) ? door : body; o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, 30), edge)); });
-    return { car: wrap, rig: rigForDoor(new THREE.Box3().setFromObject(doorNode ?? wrap)) };
+    meshes.forEach(o => {
+      // 면이 각진(법선이 평평한) 모델은 꼭짓점을 합쳐 부드러운 법선으로 다시 계산해야 X-ray 가장자리 빛이 매끄럽게 나온다
+      if (m.smooth) { const g = o.geometry.clone(); g.deleteAttribute('normal'); o.geometry = mergeVertices(g, 1e-4); o.geometry.computeVertexNormals(); }
+      o.material = inDoor(o) ? door : body;
+      o.add(new THREE.LineSegments(new THREE.EdgesGeometry(o.geometry, m.smooth ? 50 : 30), edge));
+    });
+    const db = new THREE.Box3().setFromObject(doorNode ?? wrap);
+    return { car: wrap, rig: rigForDoor(db), doorBoxes: doorParts({ min: db.min.toArray(), max: db.max.toArray() }), mats: [body, door] };
   }, [scene, m]);
 
   const sp = sceneParts(task, candidate);
-  const xf = sp.set === 'door-rl' ? rig : IDENTITY;
-  const defs = useMemo(() => (sp.set === 'door-rl' ? DOOR_PARTS.filter(d => !sp.onlyKeys || sp.onlyKeys.includes(d.key)) : sp.boxes.map(boxDef)), [sp.set, sp.boxes, sp.onlyKeys]);
+  // 도어 부품도 실제 도어 경계 안에 차량 좌표로 배치한다. rig는 단계 카메라(도어 기준 좌표)를 옮기는 데만 쓴다
+  const boxes = useMemo(() => (sp.set === 'door-rl' ? doorBoxes.filter(d => !sp.onlyKeys || sp.onlyKeys.includes(d.key)) : sp.boxes), [sp.set, sp.boxes, sp.onlyKeys, doorBoxes]);
+  const camXf = sp.set === 'door-rl' ? rig : IDENTITY;
+  const xf = IDENTITY;
+  const defs = useMemo(() => boxes.map(boxDef), [boxes]);
+  // 겉면 부품은 따로 그리지 않고 실제 차체의 그 범위를 상태 색으로 칠한다
+  const surfaces = useMemo(() => boxes.filter(b => shapeOf(b) === 'surface'), [boxes]);
   const steps = task?.steps ?? [];
   const current = task && stepIndex >= 0 ? task.steps[stepIndex] : null;
   const anchorDef = defs.find(d => d.key === (current?.highlightNodes[0] ?? sp.target));
 
   const size = useThree(st => st.size);
   const tmp = useMemo(() => new THREE.Vector3(), []);
-  useFrame(({ camera }) => {
+  useFrame(({ camera, clock }) => {
+    const pulse = 0.55 + 0.45 * (Math.sin(clock.elapsedTime * 3.6) + 1) / 2;
+    const regions: Region[] = surfaces.map(b => {
+      const t = STATE_TINT[partState(b.key, stepIndex, steps, sp.target)];
+      const [x, y, z, w, h, d] = b.box;
+      return { min: new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2), color: t.color, amount: t.amount * (t.pulse ? pulse : 1) };
+    });
+    for (const hi of heat) {
+      if (shapeOf(hi.box) !== 'surface') continue;
+      const [x, y, z, w, h, d] = hi.box.box;
+      regions.push({ min: new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2), color: HEAT, amount: 0.3 + 0.6 * hi.level });
+    }
+    mats.forEach(mt => setRegions(mt, regions));
+    // 도어 부품을 다룰 때만 도어 철판을 밝혀 위치를 알려 준다
+    setStrength(mats[1], sp.set === 'door-rl' ? 0.8 : 0.5);
     const el = labelRef.current; if (!el) return;
     if (!anchorDef) { el.style.display = 'none'; return; }
     tmp.set(...anchorDef.anchor).multiply(xf.scale).add(xf.position).project(camera);
@@ -103,7 +141,8 @@ function Scene({ task, stepIndex, onSelectStep, labelRef, candidate }: SceneProp
       <group position={xf.position} scale={xf.scale}>
         {defs.map(d => <AnimatedPart key={`${sp.set}-${d.key}`} def={d} state={partState(d.key, stepIndex, steps, sp.target)} onSelect={select} />)}
       </group>
-      <CameraRig xf={view?.local ? xf : IDENTITY} view={view} />
+      {heat.filter(hi => shapeOf(hi.box) !== 'surface').map(hi => <HeatPart key={hi.box.key} item={hi} onSelect={onSelectHeat} />)}
+      <CameraRig xf={view?.local ? camXf : IDENTITY} view={view} />
     </>
   );
 }

@@ -224,7 +224,7 @@
 
 ## 3. 페르소나와 As-is / To-be 시나리오
 
-Stack Overflow처럼 "보는 사람"과 "남기는 사람"이 있어야 굴러가서, 정비사를 신입(팁을 보며 고치는 사람)과 숙련자(팁을 남기는 사람) 둘로 나눔. 보조는 제조사 생산기술 엔지니어. 모두 가상 인물이고 차량도 가상 차량 "PBV-X"로 둠.
+Stack Overflow처럼 "보는 사람"과 "남기는 사람"이 있어야 굴러가서, 정비사를 신입(팁을 보며 고치는 사람)과 숙련자(팁을 남기는 사람) 둘로 나눔. 보조는 제조사 생산기술 엔지니어. 모두 가상 인물이고 차량도 가상 차량 "PBV-X"로 둠. 이 장은 기획 단계 시나리오이고, 시연은 D24에 따라 Tesla Model 3·X 예시 데이터로 함.
 
 ### 페르소나
 
@@ -352,7 +352,9 @@ Stack Overflow처럼 "보는 사람"과 "남기는 사람"이 있어야 굴러�
 
 | 실제 구현 (7) | Mock, 고정 응답 (4) | 설계만 (발표에서 설명) |
 | --- | --- | --- |
-| web-mechanic, web-factory, gateway(라우팅), diagnosis, guide, record, analytics | auth(데모 계정 2개, 고정 토큰), knowledge(시드 팁 120건 읽기 전용), production·manufacturer-mock(시드 차량 50대 응답) | HPA·KEDA·Spot 튜닝, 팁 작성·추천·신고, 실제 제조사 연동 |
+| web-mechanic, web-factory, gateway(라우팅), diagnosis, guide, record, analytics | auth(데모 계정, 고정 토큰), knowledge(시드 팁 12건 + 팁 남기기), production·manufacturer-mock(Tesla Model 3·X 예시 VIN 2대) | HPA·KEDA·Spot 튜닝, 팁 추천·신고, 실제 제조사 연동 |
+
+지금(11-10) 프론트는 위 서비스 대신 같은 인터페이스(`RepairThreadApi`)의 목 API로 브라우저 안에서 동작하고, 백엔드는 아직 없음. 시연 차량과 데이터 출처는 D24.
 
 ### 유스케이스 (User Story)
 
@@ -561,6 +563,7 @@ flowchart LR
 
 | # | 처음 생각 | 확인한 내용 | 바뀐 판단 |
 | --- | --- | --- | --- |
+| D24 | 가상 차량 PBV-X 1종, 대표 고장코드 1개 (D6, D20, D23) | 프론트 구현(PR #2·#6)에서 Tesla Model 3·Model X 공개 서비스 매뉴얼로 실제 절차·토크·그림을 확보함. 실제 구조를 근거로 보여 줄 수 있음. 다만 매뉴얼 그림 재배포 허락과 Model 3 3D 모델 출처는 확인 안 됨 | 시연 차량은 Tesla Model 3(기본 사례 B1A24)와 Model X(같은 코드의 차종별 절차 비교). 절차는 매뉴얼 기준, VIN·코드 번호·건수·시간·팁은 예시. Model X 3D는 CC BY 4.0 표기. 매뉴얼 그림 처리(저장소에서 빼기 또는 비공개 전환)와 Model 3 3D 출처는 팀 결정 대기. 리뷰 반영안이라 팀 확인 필요 |
 | D23 | Deployment 11개를 모두 구현하고 EKS 탄력 구조까지 시연 | 멘토 가이드 기준 점검: 핵심 기능 1\~3개, 실제 구현·Mock 구분. 남은 시간은 약 하루이고 저장소 기준 구현 코드는 아직 없음 | 데모 루프에 필요한 서비스 7개만 실제 구현, 4개는 Mock (5장). 테스트 P0는 24개에서 15개로 축소 (13장). EKS는 11-10 12:00까지 TC-K8S-01·02를 통과 못 하면 k3s Plan B로 전환 (14-6). 리뷰 반영안이라 팀 확인 필요 |
 | D22 | C4 서비스 5개, 배포 방식 미정 | 팀: 나눌 수 있는 서비스는 나누고 Kubernetes로 관리, 동시 접속이 적으니 늘었다 줄었다 하는 구조 | auth·knowledge 분리, 웹앱·제조사 mock까지 Deployment 11개. EKS Auto Mode + HPA + KEDA cron + Aurora Serverless v2로 파드·노드·DB가 사용량 따라 늘고 줌 (14장). 팁·제조사 답변(API 4)은 3D 가이드에서 knowledge 서비스로 옮김 |
 | D21 | Miro 01: 단일 REST 백엔드 + 논리 모듈 4개 | 팀 C4 다이어그램: API Gateway + 서비스 5개 + 저장소 4개 + 외부 제조사 시스템 | MSA 확정 (17시 24분). 팁·제조사 답변은 3D 가이드 서비스, 분석은 별도 DB 없이 정비 DB 집계, 메모 정리·개선 후보는 규칙 기반 |
@@ -616,7 +619,7 @@ flowchart LR
 
 | 측정 항목 | 방법 | As-is | To-be |
 | --- | --- | --- | --- |
-| 원인 후보 확정까지 시간 | 팀원 3명이 같은 과제(PBV-X 대표 고장코드)를 풀기. As-is는 매뉴얼 PDF·검색, To-be는 A① → A② | 측정 전 | 측정 전 |
+| 원인 후보 확정까지 시간 | 팀원 3명이 같은 과제(Model 3 B1A24, 예시 코드)를 풀기. As-is는 매뉴얼 PDF·검색, To-be는 A① → A② | 측정 전 | 측정 전 |
 | 분해 경로 파악까지 시간 | 같은 3명, 리어 도어 브래킷까지 선탈거 순서를 말할 수 있을 때까지 | 측정 전 | 측정 전 |
 | 빠뜨린 단계 수 | 6단계 중 고전압·접착 단계를 놓친 횟수 | 측정 전 | 측정 전 |
 
@@ -882,6 +885,9 @@ stateDiagram-v2
 | 5 | PUT /api/v1/tasks/{id}/steps/{stepId}/ack | A③ 고전압 | 3D 가이드 (Safety Warning Manager) | 사용자·절차 버전·확인 시각 저장, 다음 단계 허용 |
 | 6 | PUT /api/v1/repair-jobs/{id}/completion | A④ | 정비 기록 (공개 동의 메모는 → knowledge 팁 등록) | 검증 후 한 트랜잭션 저장, 같은 재전송은 중복 없음 |
 | 7 | GET /api/v1/manufacturer/metrics | B | 분석 (→ 정비 기록 집계 조회) | 식별정보 없는 지표, 표본 수, 갱신 시점 |
+| 8 | POST /api/v1/procedure-steps/{id}/knowledge | A③ 팁 남기기 | knowledge (D22) | 작성한 팁과 공개 여부. 비공개 팁은 작성자만 봄 |
+
+8번은 프론트(PR #8)가 단계 팁 남기기에 쓰면서 추가함. 지금은 목 API(`frontend/src/api`)가 같은 인터페이스로 1\~8번을 흉내 냄.
 
 ### 12-7. 데이터 사전 요약 (팀 ERD 02·03)
 
@@ -893,7 +899,7 @@ stateDiagram-v2
 | VEHICLE | profile\_id, vin\_lookup\_hmac (UK), production\_date, plant\_line | VIN 원문 대신 HMAC 조회 키 | 생산 연동 / 생산 DB |
 | PART | part\_number, display\_name | 부품 | 생산 연동 / 생산 DB |
 | DIAGNOSTIC\_RULE | profile\_id, dtc\_code, candidate\_part\_id, procedure\_id, official\_order, check\_method | 고장코드별 공식 점검 순서 | 진단 (참조 데이터, 시드로 적재) |
-| PROCEDURE | profile\_id, target\_part\_id, asset\_id, version, source\_ref, access\_level, standard\_minutes | 정비 절차와 표준 시간 | 3D 가이드 |
+| PROCEDURE | profile\_id, target\_part\_id, asset\_id, version, source\_ref, access\_level, standard\_minutes, after\_steps | 정비 절차와 표준 시간, 장착 뒤 할 일(예: 캘리브레이션) | 3D 가이드 |
 | PROCEDURE\_STEP | step\_order, phase, fastener\_type, requires\_hv\_ack, highlight\_nodes, fallback\_image\_key | 단계별 체결 방식, 고전압 확인, 강조 부품, 2D 대체 | 3D 가이드 |
 | MODEL\_ASSET | version, object\_key, mesh\_manifest | 3D 모델 파일 | 3D 가이드 / 3D 모델 저장소 |
 | KNOWLEDGE\_ENTRY | step\_id, author\_id, parent\_id, entry\_type, body, visibility | 정비사 팁, 기술 문의, 제조사 답변 (답글 구조) | knowledge |
@@ -903,7 +909,9 @@ stateDiagram-v2
 | REPAIR\_JOB | vehicle\_id, profile\_id, technician\_id, status, symptoms, data\_origin, completion\_fingerprint | 정비 작업. 시연/실제 구분, 완료 중복 방지 키 | 정비 기록 / 정비 DB |
 | JOB\_DTC\_RESULT | dtc\_code, outcome, actual\_cause\_part\_id, cause\_category | 고장코드별 실제 원인 | 정비 기록 / 정비 DB |
 | JOB\_TASK | procedure\_id, procedure\_version, actual\_minutes, standard\_minutes\_snapshot, module\_replaced, replaced\_parts | 실제 작업 시간·모듈 교체 | 정비 기록 / 정비 DB |
-| STEP\_RECORD | state, safety\_ack\_user\_id, safety\_ack\_at, difficulty\_code, difficulty\_note | 단계 진행, 고전압 확인, 막힘 | 정비 기록 / 정비 DB |
+| STEP\_RECORD | state, started\_at, ended\_at, safety\_ack\_user\_id, safety\_ack\_at, blocked, difficulty\_code(막힌 이유), difficulty\_note | 단계 진행, 자동 측정 시간, 고전압 확인, 막힘. 프론트 코드의 `job_step_log`가 이 테이블 | 정비 기록 / 정비 DB |
+
+ERD(12-2)의 CAUSE_STAT은 표에 없음: 시연은 원인 통계를 조회 때 계산함(목 API도 같음). 테이블로 저장할지는 백엔드 착수 때 정함.
 
 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음 (예: REPAIR\_JOB.vehicle\_id는 생산 연동 서비스의 VEHICLE id). 분석 서비스는 테이블 없이 정비 기록 서비스의 집계 조회로 계산.
 

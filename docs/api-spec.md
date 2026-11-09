@@ -1,5 +1,5 @@
 # API 명세 초안
-> 원본: [기획서 12장](./planning.md) · 2026-11-09 기준 초안. 팀 확정 전 변경될 수 있음
+> 원본: [기획서 12장](./planning.md) · 2026-11-10 기준 초안. 팀 확정 전 변경될 수 있음
 
 
 모든 경로는 API Gateway를 거침. 보드에서 3\~6번은 /api/v1 접두어가 빠져 있어 통일을 제안함.
@@ -13,6 +13,9 @@
 | 5 | PUT /api/v1/tasks/{id}/steps/{stepId}/ack | A③ 고전압 | 3D 가이드 (Safety Warning Manager) | 사용자·절차 버전·확인 시각 저장, 다음 단계 허용 |
 | 6 | PUT /api/v1/repair-jobs/{id}/completion | A④ | 정비 기록 (공개 동의 메모는 → knowledge 팁 등록) | 검증 후 한 트랜잭션 저장, 같은 재전송은 중복 없음 |
 | 7 | GET /api/v1/manufacturer/metrics | B | 분석 (→ 정비 기록 집계 조회) | 식별정보 없는 지표, 표본 수, 갱신 시점 |
+| 8 | POST /api/v1/procedure-steps/{id}/knowledge | A③ 팁 남기기 | knowledge (D22) | 작성한 팁과 공개 여부. 비공개 팁은 작성자만 봄 |
+
+8번은 프론트(PR #8)가 단계 팁 남기기에 쓰면서 추가함. 지금은 목 API(`frontend/src/api`)가 같은 인터페이스로 1\~8번을 흉내 냄.
 
 ## 관련 정책
 

@@ -197,8 +197,9 @@ flowchart TB
 
 ### 배포 (AWS · EKS)
 
-![AWS 배포 구성도: CloudFront·S3, ALB·NAT, EKS Auto Mode 파드 11개, Aurora Serverless v2, CI/CD, 관리형 서비스](docs/images/aws-eks.png)
+![AWS 배포 구성도 (목표 구성): CloudFront·S3, ALB·NAT, EKS Auto Mode 파드 11개(회색 글자 4개는 Mock), Aurora Serverless v2, CI/CD, 관리형 서비스](docs/images/aws-eks.png)
 
+- 목표 구성. 지금 시연은 위 [현재 시연 구성](#4-구현-현황-실제-구현--mock--설계만)처럼 브라우저 안에서 돎
 - Deployment 11개를 EKS Auto Mode 클러스터 하나에서 관리, 동시 접속이 적다는 전제로 파드(HPA·KEDA cron)·노드(Spot)·DB(Aurora Serverless v2)가 사용량 따라 늘고 줆
 - EKS 컨트롤 플레인·ALB·NAT는 사용량과 상관없이 과금돼서 시연 후 `terraform destroy`
 - 시간 게이트: 11-10 12:00까지 TC-K8S-01·02를 통과 못 하면 같은 매니페스트를 k3s에 올림

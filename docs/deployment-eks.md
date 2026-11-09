@@ -178,6 +178,6 @@ repair-thread/
 
 ## 14-7. 배포 구성도
 
-사용자 요청은 CloudFront를 지나 3D 모델은 S3로, 나머지는 ALB와 Ingress를 거쳐 EKS Auto Mode 노드의 파드로 감. 파드는 프라이빗 서브넷에서 Aurora Serverless v2 스키마에 붙고, 이미지는 GitHub Actions가 ECR에 올린 것을 받음.
+사용자 요청은 CloudFront를 지나 3D 모델·매뉴얼 그림(`/models`, `/manual`)은 S3로, 나머지는 ALB와 Ingress를 거쳐 EKS Auto Mode 노드의 파드로 감. 파드는 프라이빗 서브넷에서 Aurora Serverless v2 스키마에 붙고, 이미지는 GitHub Actions가 ECR에 올린 것을 받음.
 
-![AWS 배포 구성도: CloudFront·S3 엣지, 퍼블릭 서브넷의 ALB·NAT, EKS Auto Mode 파드 11개, Aurora Serverless v2, CI/CD, 관리형 서비스](images/aws-eks.png)
+![AWS 배포 구성도 (목표 구성): CloudFront·S3 엣지, 퍼블릭 서브넷의 ALB·NAT, EKS Auto Mode 파드 11개(회색 글자 4개는 Mock), Aurora Serverless v2, CI/CD, 관리형 서비스](images/aws-eks.png)

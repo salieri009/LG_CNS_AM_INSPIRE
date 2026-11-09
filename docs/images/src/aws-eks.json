@@ -1,0 +1,335 @@
+{
+ "scale": 40,
+ "title": "Repair Thread · AWS 배포 구성도 (EKS)",
+ "caption": "파드·노드·DB가 사용량 따라 늘고 줄어듦 · 파란 링: HPA로 늘고 줄며 최소 1개 · 노란 링: 시연 시간에만 켜짐 (KEDA) · 고정 과금은 EKS 컨트롤 플레인·ALB·NAT",
+ "platforms": [
+  {
+   "id": "cicd",
+   "x": 25,
+   "y": -12,
+   "w": 16,
+   "d": 5,
+   "label": "CI/CD"
+  },
+  {
+   "id": "edge",
+   "x": 0,
+   "y": 0,
+   "w": 8,
+   "d": 12,
+   "label": "엣지 · CloudFront + S3"
+  },
+  {
+   "id": "pub",
+   "x": 13,
+   "y": 0,
+   "w": 7,
+   "d": 12,
+   "label": "VPC · 퍼블릭 서브넷"
+  },
+  {
+   "id": "eks",
+   "x": 25,
+   "y": -2,
+   "w": 24,
+   "d": 18,
+   "label": "VPC · 프라이빗 앱 서브넷 · EKS Auto Mode"
+  },
+  {
+   "id": "data",
+   "x": 54,
+   "y": 0,
+   "w": 9,
+   "d": 12,
+   "label": "VPC · 프라이빗 데이터 서브넷"
+  },
+  {
+   "id": "mgd",
+   "x": 54,
+   "y": 15,
+   "w": 9,
+   "d": 7,
+   "label": "관리형 서비스"
+  }
+ ],
+ "servers": [
+  {
+   "on": "eks",
+   "x": 0.6,
+   "y": 0.6,
+   "label": "Auto Mode"
+  },
+  {
+   "on": "eks",
+   "x": 0.6,
+   "y": 4.8,
+   "label": "+Spot"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "mech",
+   "icon": "person",
+   "label": "정비사",
+   "x": -5,
+   "y": 2
+  },
+  {
+   "id": "eng",
+   "icon": "person",
+   "label": "제조사 담당자",
+   "x": -5,
+   "y": 8
+  },
+  {
+   "id": "dev",
+   "icon": "person",
+   "label": "Developer",
+   "x": 20,
+   "y": -12
+  },
+  {
+   "id": "cf",
+   "on": "edge",
+   "icon": "aws:AmazonCloudFront",
+   "label": "CloudFront",
+   "x": 4,
+   "y": 3.2
+  },
+  {
+   "id": "s3",
+   "on": "edge",
+   "icon": "aws:AmazonSimpleStorageService",
+   "label": "S3 · 3D 모델",
+   "x": 4,
+   "y": 8.6
+  },
+  {
+   "id": "alb",
+   "on": "pub",
+   "icon": "aws:ElasticLoadBalancingApplicationLoadBalancer",
+   "label": "ALB",
+   "x": 3.5,
+   "y": 3.2
+  },
+  {
+   "id": "nat",
+   "on": "pub",
+   "icon": "aws:AmazonVPCNATGateway",
+   "label": "NAT Gateway",
+   "x": 3.5,
+   "y": 8.6
+  },
+  {
+   "id": "rds",
+   "on": "data",
+   "icon": "aws:AmazonAurora",
+   "label": "Aurora Serverless v2",
+   "x": 4.5,
+   "y": 6
+  },
+  {
+   "id": "sm",
+   "on": "mgd",
+   "icon": "aws:AWSSecretsManager",
+   "label": "Secrets Manager",
+   "x": 2.2,
+   "y": 3.5
+  },
+  {
+   "id": "cw",
+   "on": "mgd",
+   "icon": "aws:AmazonCloudWatch",
+   "label": "CloudWatch",
+   "x": 6.6,
+   "y": 3.5
+  },
+  {
+   "id": "cp",
+   "on": "eks",
+   "icon": "aws:AmazonElasticKubernetesService",
+   "label": "EKS 컨트롤 플레인",
+   "x": 20,
+   "y": 10
+  }
+ ],
+ "rows": [
+  {
+   "on": "cicd",
+   "dir": "x",
+   "x": 3,
+   "y": 2.5,
+   "gap": 5,
+   "items": [
+    {
+     "id": "gh",
+     "icon": "devicon:github",
+     "label": "GitHub"
+    },
+    {
+     "id": "gha",
+     "icon": "devicon:githubactions",
+     "label": "GitHub Actions"
+    },
+    {
+     "id": "ecr",
+     "icon": "aws:AmazonElasticContainerRegistry",
+     "label": "ECR"
+    }
+   ]
+  },
+  {
+   "on": "eks",
+   "dir": "h",
+   "x": 4,
+   "y": 9,
+   "gap": 4.8,
+   "items": [
+    {
+     "icon": "si:nginx",
+     "label": "web-mechanic",
+     "ring": "blue",
+     "labelColor": "blue"
+    },
+    {
+     "icon": "si:nginx",
+     "label": "web-factory",
+     "ring": "amber",
+     "labelColor": "amber"
+    },
+    {
+     "icon": "si:springboot",
+     "label": "gateway",
+     "ring": "blue",
+     "labelColor": "blue"
+    },
+    {
+     "icon": "si:springboot",
+     "label": "auth"
+    }
+   ]
+  },
+  {
+   "on": "eks",
+   "dir": "h",
+   "x": 6,
+   "y": 13.5,
+   "gap": 4.8,
+   "items": [
+    {
+     "icon": "si:springboot",
+     "label": "diagnosis",
+     "ring": "blue",
+     "labelColor": "blue"
+    },
+    {
+     "icon": "si:springboot",
+     "label": "guide",
+     "ring": "blue",
+     "labelColor": "blue"
+    },
+    {
+     "icon": "si:springboot",
+     "label": "knowledge"
+    },
+    {
+     "icon": "si:springboot",
+     "label": "record",
+     "ring": "blue",
+     "labelColor": "blue"
+    }
+   ]
+  },
+  {
+   "on": "eks",
+   "dir": "h",
+   "x": 10,
+   "y": 16,
+   "gap": 4.8,
+   "items": [
+    {
+     "icon": "si:springboot",
+     "label": "analytics",
+     "ring": "amber",
+     "labelColor": "amber"
+    },
+    {
+     "icon": "si:springboot",
+     "label": "production"
+    },
+    {
+     "icon": "hex:M:#1e293b",
+     "label": "manufacturer-mock",
+     "ring": "amber",
+     "labelColor": "amber"
+    }
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "from": "mech",
+   "to": "cf"
+  },
+  {
+   "from": "eng",
+   "to": "cf"
+  },
+  {
+   "from": "cf",
+   "to": "s3",
+   "label": "/models/*"
+  },
+  {
+   "from": "cf",
+   "to": "alb",
+   "label": "/ · /factory · /api"
+  },
+  {
+   "from": "pub",
+   "fromSide": "br",
+   "fromT": 0.3,
+   "to": "eks",
+   "toSide": "tl",
+   "label": "Ingress"
+  },
+  {
+   "from": "dev",
+   "to": "gh"
+  },
+  {
+   "from": "gh",
+   "to": "gha"
+  },
+  {
+   "from": "gha",
+   "to": "ecr"
+  },
+  {
+   "from": "cicd",
+   "fromSide": "bl",
+   "fromT": 0.85,
+   "to": "eks",
+   "toSide": "tr",
+   "label": "이미지 pull"
+  },
+  {
+   "from": "eks",
+   "fromSide": "br",
+   "fromT": 0.4,
+   "to": "data",
+   "toSide": "tl",
+   "label": "스키마별 계정 · 0 ACU 일시정지"
+  },
+  {
+   "from": "eks",
+   "fromSide": "br",
+   "fromT": 0.95,
+   "to": "mgd",
+   "toSide": "tl",
+   "toT": 0.2,
+   "label": "시크릿 · 로그",
+   "dashed": true
+  }
+ ]
+}

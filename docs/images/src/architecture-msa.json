@@ -1,7 +1,7 @@
 {
  "scale": 40,
- "title": "Repair Thread · MSA 구성도 (C4 Level 2)",
- "caption": "AI 없음 · 서비스 간에는 ID만 참조, 다른 서비스 DB 직접 조인 금지 · 분석은 정비 DB 집계 조회",
+ "title": "Repair Thread · MSA 구성도 (C4 Level 2 · 논리 서비스 7개)",
+ "caption": "서비스 간에는 ID만 참조, 다른 서비스 DB 직접 조인 금지 · 저장소는 Aurora 1개에 스키마 5개 + S3 · 회색 (Mock): 시연은 고정 응답 (D23) · 배포 단위 11개는 EKS 구성도",
  "platforms": [
   {
    "id": "client",
@@ -32,15 +32,15 @@
    "x": 23,
    "y": -3,
    "w": 12,
-   "d": 24,
+   "d": 28,
    "label": "마이크로서비스 · Spring Boot"
   },
   {
    "id": "store",
    "x": 39,
    "y": -3,
-   "w": 8,
-   "d": 24,
+   "w": 9,
+   "d": 28,
    "label": "저장소 · 서비스별 소유"
   }
  ],
@@ -79,7 +79,7 @@
    "id": "gwn",
    "on": "gw",
    "icon": "hex:GW:#475569",
-   "label": "인증·권한·제조사 범위",
+   "label": "토큰 검증 · 라우팅",
    "x": 3.5,
    "y": 6
   },
@@ -87,47 +87,81 @@
    "id": "oem",
    "on": "ext",
    "icon": "hex:M:#1e293b",
-   "label": "제조사 시스템",
+   "label": "제조사 시스템 (Mock)",
+   "labelColor": "#94a3b8",
    "x": 6,
    "y": 2.4
+  },
+  {
+   "id": "ana",
+   "on": "svc",
+   "icon": "si:springboot",
+   "label": "분석",
+   "x": 3,
+   "y": 11
   },
   {
    "id": "pdb",
    "on": "store",
    "icon": "hex:DB:#64748b",
-   "label": "생산 DB",
-   "x": 4,
+   "label": "production 스키마",
+   "x": 4.5,
    "y": 2
   },
   {
    "id": "rdb",
    "on": "store",
    "icon": "hex:DB:#64748b",
-   "label": "정비 DB",
-   "x": 4,
-   "y": 12
+   "label": "record 스키마",
+   "x": 4.5,
+   "y": 11
   },
   {
-   "id": "mdl",
+   "id": "kdb",
+   "on": "store",
+   "icon": "hex:DB:#64748b",
+   "label": "knowledge 스키마",
+   "x": 4.5,
+   "y": 15.5
+  },
+  {
+   "id": "gdb",
    "on": "store",
    "icon": "hex:3D:#b45309",
-   "label": "3D 모델 저장소",
-   "x": 4,
-   "y": 22
+   "label": "guide 스키마",
+   "x": 4.5,
+   "y": 20
+  },
+  {
+   "id": "adb",
+   "on": "store",
+   "icon": "hex:DB:#64748b",
+   "label": "auth 스키마",
+   "x": 4.5,
+   "y": 24.5
+  },
+  {
+   "id": "s3",
+   "on": "store",
+   "icon": "aws:AmazonSimpleStorageService",
+   "label": "S3 · 3D 모델(guide) · 팁 사진(knowledge)",
+   "x": 7.6,
+   "y": 5.5
   }
  ],
  "rows": [
   {
    "on": "svc",
    "dir": "y",
-   "x": 6,
+   "x": 8.5,
    "y": 2,
-   "gap": 5,
+   "gap": 4.5,
    "items": [
     {
      "id": "pi",
      "icon": "si:springboot",
-     "label": "생산 연동"
+     "label": "생산 연동 (Mock)",
+     "labelColor": "#94a3b8"
     },
     {
      "id": "diag",
@@ -140,14 +174,21 @@
      "label": "정비 기록"
     },
     {
-     "id": "ana",
+     "id": "know",
      "icon": "si:springboot",
-     "label": "분석"
+     "label": "knowledge (Mock)",
+     "labelColor": "#94a3b8"
     },
     {
      "id": "guide",
      "icon": "si:springboot",
      "label": "3D 가이드"
+    },
+    {
+     "id": "auth",
+     "icon": "si:springboot",
+     "label": "auth (Mock)",
+     "labelColor": "#94a3b8"
     }
    ]
   }
@@ -173,7 +214,7 @@
    "fromSide": "br",
    "to": "svc",
    "toSide": "tl",
-   "label": "라우팅"
+   "label": "API 1~8"
   },
   {
    "from": "diag",
@@ -186,7 +227,15 @@
   {
    "from": "ana",
    "to": "rec",
-   "color": "red"
+   "color": "red",
+   "label": "집계 조회"
+  },
+  {
+   "from": "rec",
+   "to": "know",
+   "label": "공개 동의 메모",
+   "labelT": 0.5,
+   "labelOffset": -30
   },
   {
    "from": "pi",
@@ -199,15 +248,27 @@
    "dashed": true
   },
   {
+   "from": "know",
+   "to": "kdb",
+   "dashed": true
+  },
+  {
    "from": "guide",
-   "to": "mdl",
+   "to": "gdb",
+   "dashed": true
+  },
+  {
+   "from": "auth",
+   "to": "adb",
    "dashed": true
   },
   {
    "from": "pi",
    "to": "ext",
    "toSide": "bl",
-   "label": "생산 이력"
+   "label": "생산 이력",
+   "toT": 0.75,
+   "labelT": 0.7
   }
  ]
 }

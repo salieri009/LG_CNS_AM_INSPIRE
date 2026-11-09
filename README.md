@@ -162,9 +162,11 @@ Tesla Model 3, 고장코드 B1A24 (리어 왼쪽 도어 래치, 예시 코드). 
 
 ### 아키텍처 (C4 Level 2)
 
-![MSA 구성도: 클라이언트, API Gateway, Spring Boot 마이크로서비스 5개, 서비스별 저장소, 외부 제조사 시스템](docs/images/architecture-msa.png)
+![MSA 구성도: 클라이언트, API Gateway, Spring Boot 마이크로서비스 7개(회색은 Mock), 서비스별 스키마와 S3, 외부 제조사 시스템](docs/images/architecture-msa.png)
 
-- 마이크로서비스 5개 (배포 단위로는 auth·knowledge를 더 나눠 11개, D22). 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음
+- 논리 서비스 7개: 진단, 3D 가이드, 정비 기록, 분석, 생산 연동에 auth와 knowledge를 나눔 (D22). 배포 단위는 웹앱 2개·Gateway·제조사 mock까지 11개
+- 회색 글자(auth, knowledge, 생산 연동, 제조사 시스템)는 시연에서 고정 응답 Mock (D23)
+- 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음. 저장소는 Aurora 클러스터 1개에 스키마 5개 + S3
 - 진단·분석은 자체 DB 없이 다른 서비스를 호출함 (분석은 정비 DB 집계 조회)
 - Spring Boot 계층: Controller → Application Service → Domain Service → Repository / External API Client
 - 프론트는 화면 코드가 `RepairThreadApi` 인터페이스에만 의존해서, 목 API를 HTTP 구현으로 바꾸면 백엔드에 그대로 붙음
@@ -176,16 +178,19 @@ Tesla Model 3, 고장코드 B1A24 (리어 왼쪽 도어 래치, 예시 코드). 
 flowchart TB
   MECH([정비사]) --> WEB[정비사 웹앱]
   ENG([제조사 담당자]) --> DASH[공장 대시보드]
-  WEB --> GW[API Gateway<br/>인증·권한·제조사 범위]
+  WEB --> GW[API Gateway<br/>토큰 검증·라우팅]
   DASH --> GW
-  GW --> DIAG[진단] & GUIDE[3D 가이드] & REC[정비 기록] & ANA[분석] & PI[생산 연동]
+  GW --> DIAG[진단] & GUIDE[3D 가이드] & REC[정비 기록] & ANA[분석] & PI[생산 연동 · Mock] & KN[knowledge · Mock] & AUTH[auth · Mock]
   DIAG --> PI
   DIAG --> REC
-  ANA --> REC
-  GUIDE -.-> MS[(3D 모델 저장소)]
-  REC -.-> RDB[(정비 DB)]
-  PI -.-> PDB[(생산 DB)]
-  PI --> EXT[제조사 시스템 · 외부]
+  ANA -->|집계 조회| REC
+  REC -->|공개 동의 메모| KN
+  GUIDE -.-> GDB[(guide 스키마 · 3D 모델 S3)]
+  KN -.-> KDB[(knowledge 스키마 · 팁 사진 S3)]
+  REC -.-> RDB[(record 스키마)]
+  PI -.-> PDB[(production 스키마)]
+  AUTH -.-> ADB[(auth 스키마)]
+  PI --> EXT[제조사 시스템 · 외부 · Mock]
 ```
 
 </details>

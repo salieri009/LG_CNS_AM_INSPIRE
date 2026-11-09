@@ -104,7 +104,8 @@ export interface KnowledgeEntry {
 export interface StepAck { taskId: string; stepId: string; ackedAt: string }
 
 export interface CompletionRequest {
-  actualCausePartId: string;
+  /** 실제 원인 부품. 원인을 확인하지 못했으면 null (원인 통계 분모에서 빠진다) */
+  actualCausePartId: string | null;
   actualMinutes: number;
   stuckStepId: string | null;
   moduleReplaced: boolean;

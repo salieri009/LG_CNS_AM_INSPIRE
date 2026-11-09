@@ -1,13 +1,16 @@
 import { createStore, useStore } from 'zustand';
 import { api as defaultApi } from '../api/mockApi';
 import type { CompletionRequest, KnowledgeEntry, RepairJob, RepairTask, RepairThreadApi, StepLog, VehicleLookup } from '../api/types';
-import { HISTORY_SEED, VEHICLE_LIST } from '../mocks/seed';
+import { HISTORY_SEED } from '../mocks/seed';
 
 export type Mode = 'idle' | 'cands' | 'repair' | 'record';
-export interface HistoryItem { id: string; code: string; partId: string; time: string; status: 'live' | 'done'; step: number; minutes?: number }
+/** 오늘 작업 기록. vin으로 어느 차의 작업인지 구분한다 (같은 고장코드가 차종마다 다르다) */
+export interface HistoryItem { id: string; vin: string; code: string; partId: string; time: string; status: 'live' | 'done'; step: number; minutes?: number }
 
 interface State {
   vehicle: VehicleLookup | null;
+  /** 지금 고른 차량의 VIN */
+  vin: string | null;
   job: RepairJob | null;
   task: RepairTask | null;
   mode: Mode;
@@ -79,13 +82,13 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
       set({ history: get().history.map(h => (h.id === id ? { ...h, step } : h)) });
     };
     return {
-      vehicle: null, ...fresh, panels: { left: true, right: !narrow() }, history: HISTORY_SEED.map(h => ({ ...h })), error: '', notice: '',
+      vehicle: null, vin: null, ...fresh, panels: { left: true, right: !narrow() }, history: HISTORY_SEED.map(h => ({ ...h })), error: '', notice: '',
 
       async lookup(vin) {
         try {
           const vehicle = await api.lookupVehicle({ vin });
           // 좁은 화면에서는 차를 고르면 고장코드 목록이 있는 오른쪽 패널로 넘어간다
-          set({ ...fresh, error: '', notice: '', vehicle, ...(narrow() ? { panels: { left: false, right: true } } : {}) });
+          set({ ...fresh, error: '', notice: '', vehicle, vin: vin.trim().toUpperCase(), ...(narrow() ? { panels: { left: false, right: true } } : {}) });
         }
         catch (e) { set({ error: (e as Error).message }); }
       },
@@ -101,7 +104,7 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         const job = get().job; if (!job) return;
         try {
           const task = await api.createTask(job.jobId, partId);
-          const item: HistoryItem = { id: `h-${task.taskId}`, code: job.dtcCode, partId, time: now(), status: 'live', step: 0 };
+          const item: HistoryItem = { id: `h-${task.taskId}`, vin: get().vin ?? '', code: job.dtcCode, partId, time: now(), status: 'live', step: 0 };
           // 수리 중에는 3D와 매뉴얼에 자리를 주려고 왼쪽 패널을 접는다
           set({ task, mode: 'repair', step: 0, acked: {}, liveId: item.id, myTips: [], stepLog: { [task.steps[0].stepId]: { stepId: task.steps[0].stepId, startedAt: Date.now(), blocked: false } }, panels: { ...get().panels, left: false }, history: [item, ...get().history.filter(h => h.id !== item.id)] });
         } catch (e) { set({ error: (e as Error).message }); }
@@ -146,23 +149,32 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
       openRecord() { if (hvCleared(get())) set({ mode: 'record', panels: { ...get().panels, right: true } }); },
       async submitRecord(req) {
         const job = get().job; if (!job) return;
-        const res = await api.completeJob(job.jobId, { ...req, stepLogs: Object.values(get().stepLog) });
+        let res;
+        try { res = await api.completeJob(job.jobId, { ...req, stepLogs: Object.values(get().stepLog) }); }
+        catch (e) { set({ error: (e as Error).message }); return; }
         const id = get().liveId;
+        const notice = res.duplicated ? '이미 기록된 작업입니다.'
+          : req.actualCausePartId ? `기록했습니다. 같은 사양의 원인 통계가 n=${job.candidates[0].observedRaw.n + 1}건 기준으로 다시 계산됐습니다.`
+            : '기록했습니다. 원인 미확인이라 원인 통계에는 넣지 않았습니다.';
         set({
           ...fresh,
           history: get().history.map(h => (h.id === id ? { ...h, status: 'done' as const, minutes: req.actualMinutes } : h)),
-          notice: res.duplicated ? '이미 기록된 작업입니다.' : `기록했습니다. 같은 사양의 원인 통계가 n=${job.candidates[0].observedRaw.n + 1}건 기준으로 다시 계산됐습니다.`,
+          error: '', notice,
         });
       },
       async resume(historyId) {
         const h = get().history.find(x => x.id === historyId); if (!h) return;
-        if (!get().vehicle) await get().lookup(VEHICLE_LIST[0].vin);
+        // 기록에 남은 차량으로 다시 연다. 지금 다른 차를 고른 상태여도 그 차로 바꾼다
+        if (get().vin !== h.vin) await get().lookup(h.vin);
+        if (get().vin !== h.vin) return;
         await get().pickCode(h.code);
         if (h.status === 'done') return;
         await get().startRepair(h.partId);
         const t = get().task; if (!t) return;
-        // 멈춘 단계 이전의 고전압 확인은 이미 했던 것으로 본다
-        const acked = Object.fromEntries(t.steps.slice(0, h.step).map(st => [st.stepId, true]));
+        // 멈춘 단계 이전의 고전압 확인은 서버 기록에서 되살린다. 목 API는 작업을 저장하지 않아 여기서 다시 남긴다
+        const hvBefore = t.steps.slice(0, h.step).filter(st => st.requiresHvAck);
+        for (const st of hvBefore) await api.ackStep(t.taskId, st.stepId);
+        const acked = Object.fromEntries(hvBefore.map(st => [st.stepId, true]));
         const created = `h-${t.taskId}`;
         const sid = t.steps[h.step].stepId;
         set({ step: h.step, acked, liveId: h.id, stepLog: { [sid]: { stepId: sid, startedAt: Date.now(), blocked: false } }, history: get().history.filter(x => x.id === h.id || x.id !== created) });

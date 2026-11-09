@@ -25,7 +25,7 @@ export const MODELX_BATTERY_CASE: CaseSeed = {
   candidates: [
     { partId: 'part-mx-lv', partName: 'LV 배터리 노화', officialOrder: 1, checkMethod: '교체 전에 Toolbox로 LV 배터리 복구부터 시도', count: 14, n: 31, chronic: true, agree: 14, procedureId: 'proc-mx-lv', highlightNode: 'battery' },
     { partId: 'part-mx-lv-conn', partName: 'LV 커넥터 체결 불량', officialOrder: 2, checkMethod: '초록 잠금 탭과 검은 커넥터 락이 끝까지 걸렸는지 확인', count: 9, n: 31, chronic: false, agree: 9, box: P.lvConn },
-    { partId: 'part-mx-parasitic', partName: '대기 전력 큰 모듈 (암전류)', officialOrder: 3, checkMethod: '슬립 상태 암전류 측정', count: 4, n: 17, chronic: false, agree: 4 },
+    { partId: 'part-mx-parasitic', partName: '대기 전력 큰 모듈 (암전류)', officialOrder: 3, checkMethod: '슬립 상태 암전류 측정', count: 4, n: 31, chronic: false, agree: 4 },
   ],
   procedures: [{
     procedureId: 'proc-mx-lv', procedureVersion: 'MX-2021+ / 17011222', targetPartId: 'part-mx-lv', targetPartName: 'LV 배터리',

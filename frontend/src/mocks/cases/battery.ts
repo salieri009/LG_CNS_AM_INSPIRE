@@ -20,7 +20,7 @@ export const BATTERY_CASE: CaseSeed = {
     { partId: 'part-12v', partName: '12V 배터리 노화', officialOrder: 1, checkMethod: '12V 전압부터 측정 (다른 모듈 의심 전에)', count: 27, n: 52, chronic: true, agree: 27, procedureId: 'proc-12v', highlightNode: 'battery' },
     { partId: 'part-12v-terminal', partName: '배터리 단자 체결 불량·부식', officialOrder: 2, checkMethod: '단자 토크와 부식 확인', count: 11, n: 52, chronic: false, agree: 11, box: P.terminalNeg },
     { partId: 'part-dcdc', partName: 'DC-DC 컨버터 충전 불량', officialOrder: 3, checkMethod: '주행 준비 상태에서 12V 충전 전압 확인', count: 9, n: 52, chronic: false, agree: 9, box: { key: 'dcdc', name: 'DC-DC 컨버터', box: [0.6, 0.3, 0, 0.3, 0.08, 0.3], offset: [0, 0, 0], shape: 'module' } },
-    { partId: 'part-parasitic', partName: '대기 전력 큰 모듈 (암전류)', officialOrder: 4, checkMethod: '슬립 상태 암전류 측정', count: 5, n: 22, chronic: false, agree: 5 },
+    { partId: 'part-parasitic', partName: '대기 전력 큰 모듈 (암전류)', officialOrder: 4, checkMethod: '슬립 상태 암전류 측정', count: 5, n: 52, chronic: false, agree: 5 },
   ],
   procedures: [{
     procedureId: 'proc-12v', procedureVersion: 'M3-2017-2023 / 00020003', targetPartId: 'part-12v', targetPartName: '12V 배터리',

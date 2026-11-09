@@ -13,7 +13,8 @@ export function RecordForm() {
   const [stuck, setStuck] = useState(draft.stuckStepId ?? '');
   const [moduleReplaced, setModule] = useState(false);
   const [memo, setMemo] = useState('');
-  const [memoPublic, setPublic] = useState(true);
+  // 메모 공개는 명시적으로 동의할 때만 (api-spec 메모 공개 정책)
+  const [memoPublic, setPublic] = useState(false);
   const [busy, setBusy] = useState(false);
   const [after, setAfter] = useState<Record<number, boolean>>({});
   const afterDone = (task?.afterSteps ?? []).every((_, i) => after[i]);
@@ -22,7 +23,7 @@ export function RecordForm() {
   return (
     <form className="record" onSubmit={async e => {
       e.preventDefault(); setBusy(true);
-      try { await submitRecord({ actualCausePartId: cause, actualMinutes: Number(minutes), stuckStepId: stuck || null, moduleReplaced, memo, memoPublic }); }
+      try { await submitRecord({ actualCausePartId: cause || null, actualMinutes: Number(minutes), stuckStepId: stuck || null, moduleReplaced, memo, memoPublic }); }
       finally { setBusy(false); }
     }}>
       <p className="label">결과 기록</p>
@@ -40,6 +41,7 @@ export function RecordForm() {
       <label>실제 원인
         <select value={cause} onChange={e => setCause(e.target.value)}>
           {job.candidates.map(c => <option key={c.partId} value={c.partId}>{c.partName}</option>)}
+          <option value="">원인 미확인 (원인 통계에서 제외)</option>
         </select>
       </label>
       <label>걸린 시간 (분)

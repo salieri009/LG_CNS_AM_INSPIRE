@@ -11,6 +11,8 @@
 
 **공장은 조립하기 쉬운 차를 만들지만, 그 차가 얼마나 고치기 어려운지는 모른다.**
 
+> 독립 정비소의 신입 정비사가 처음 보는 전기차·PBV의 고장코드를 받았을 때, 어디부터 점검하고 어떻게 분해할지 몰라 작업 시간이 늘어나는 문제를, 제조사 공식 진단 순서와 같은 사양의 관측 원인 비율, 3D 분해 경로로 풀고, 그 정비 결과를 제조사의 설계 지표로 돌려준다.
+
 정비 결과 한 건이 다음 정비사의 점검 추천과 공장의 설계 지표를 동시에 바꾸는 양방향 루프를 만든다.
 
 ## 문제
@@ -75,6 +77,8 @@ flowchart LR
 3. B② B③: 분석 깊이
 4. 나머지 선택 기능
 
+해커톤 시연에서 실제 코드는 데모 루프(A① → A④ → B①)에 필요한 서비스 7개만 만들고, 로그인·단계 팁·생산 이력·제조사 시스템 4개는 고정 응답 Mock으로 둔다 ([기획서 5장, D23](docs/planning.md#실제-구현--mock--미구현)).
+
 ## 아키텍처 (C4 Level 2)
 
 ![MSA 구성도: 클라이언트, API Gateway, Spring Boot 마이크로서비스 5개, 서비스별 저장소, 외부 제조사 시스템](docs/images/architecture-msa.png)
@@ -129,7 +133,7 @@ flowchart TB
 | 시범 범위: 사양 1종 + 대표 고장코드 1개 | 해커톤에서 과장 없이 검증 가능한 범위 |
 | Kubernetes + 늘었다 줄었다 하는 구조 | 동시 접속이 적어서 평소엔 최소로 두고, 서비스는 나눠서 따로 배포·확장 |
 
-전체 결정 이력(D1~D22)은 [기획서 9장](docs/planning.md#9-의사결정-로그)에 있음.
+전체 결정 이력(D1~D23)은 [기획서 9장](docs/planning.md#9-의사결정-로그)에 있음.
 
 ## 문서
 
@@ -140,6 +144,7 @@ flowchart TB
 | [docs/data-dictionary.md](docs/data-dictionary.md) | 테이블 14개, 소유 서비스·저장소 |
 | [docs/test-plan.md](docs/test-plan.md) | 테스트케이스 53개 (P0 24개), 경계값 픽스처, 시연 리허설 순서 |
 | [docs/deployment-eks.md](docs/deployment-eks.md) | AWS·EKS 배포 기획: 서비스 분리, 탄력 설계, 매니페스트 예시, CI/CD, 비용·리스크 |
+| [docs/review-mentor-guide.md](docs/review-mentor-guide.md) | 해커톤 가이드 기준 리뷰: 8항목 판정, 체크리스트, 범위 칼질, 발표·Q&A, 반영 내역 |
 | [docs/images/src/](docs/images/src) | 그림 원본: 구성도 스펙(JSON), 루프 다이어그램(Excalidraw) |
 
 ## 상태
@@ -148,6 +153,8 @@ flowchart TB
 - [x] API 명세·데이터 사전 초안
 - [x] 테스트케이스 기획
 - [x] AWS·EKS 배포 기획
+- [x] 해커톤 가이드 기준 리뷰와 반영 (시연 범위 D23, 발표 구성 15장)
+- [ ] 데모 전 측정 (기획서 10장)
 - [ ] Acceptance Criteria
 - [ ] Repository 구조 · Git Branch 전략
 - [ ] 구현 (MVP 1순위부터)

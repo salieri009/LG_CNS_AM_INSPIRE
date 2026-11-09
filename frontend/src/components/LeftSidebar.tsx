@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRepair } from '../store/useRepairStore';
 import { MECHANIC, VEHICLE_LIST } from '../mocks/seed';
+import { CC_BY_4, MODEL_CREDITS } from '../mocks/cases/types';
 
 /** 왼쪽 사이드바: 누가 정비하는지(정비사)와 어떤 차를 보는지(차량 목록·VIN 조회) */
 export function LeftSidebar() {
@@ -30,7 +31,9 @@ export function LeftSidebar() {
         </form>
         {error && <p role="alert" className="error">{error}</p>}
       </section>
-      <p className="note">원인 확률·정비 시간·팁·VIN·고장코드 번호는 예시 데이터입니다. 절차·토크·그림 출처는 Tesla Model 3·Model X Service Manual입니다. Model X 3D: David_Holiday (Sketchfab), CC BY 4.0.</p>
+      <p className="note">원인 확률·정비 시간·팁·VIN·고장코드 번호는 예시 데이터입니다. 절차·토크·그림 출처는 Tesla Model 3·Model X Service Manual입니다. 3D 모델: {MODEL_CREDITS.map((c, i) => (
+        <span key={c.url}>{i > 0 && ', '}<a href={c.url} target="_blank" rel="noreferrer">{c.title}</a> by <a href={c.authorUrl} target="_blank" rel="noreferrer">{c.author}</a></span>
+      ))} (Sketchfab, <a href={CC_BY_4} target="_blank" rel="noreferrer">CC BY 4.0</a>, 웹용으로 압축·변환함).</p>
     </aside>
   );
 }

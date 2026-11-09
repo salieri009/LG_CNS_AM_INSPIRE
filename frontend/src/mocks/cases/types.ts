@@ -2,10 +2,17 @@ import type { KnowledgeEntry, PartBox, ProcedureStep } from '../../api/types';
 
 export const MANUAL = 'https://service.tesla.com/docs/Model3/ServiceManual/en-us/';
 export const IMG = '/manual/model3/';
+/** 3D 모델 출처 (CC BY 4.0: 저작자·원본 링크·라이선스·변경 사항을 화면과 README에 표기) */
+export const MODEL_CREDITS = [
+  { title: 'Tesla model 3', author: 'dannzjs', authorUrl: 'https://sketchfab.com/dannzjs', url: 'https://sketchfab.com/3d-models/tesla-model-3-5af35a4772f240039a6e58c58998555b' },
+  { title: 'Tesla Model X', author: 'David_Holiday', authorUrl: 'https://sketchfab.com/David_Holiday', url: 'https://sketchfab.com/3d-models/tesla-model-x-5c08f723bfc94a98b7d7918e3e4ff1dc' },
+] as const;
+export const CC_BY_4 = 'https://creativecommons.org/licenses/by/4.0/';
+/** Model 3 GLB: Sketchfab dannzjs, CC BY 4.0. 부품 노드 이름(door_lr, hub_lf 등)이 살아 있다 */
 export const MODEL3 = { assetUrl: '/models/tesla-model3.glb', meshManifest: { door: 'door_lr', hubFrontLeft: 'hub_lf', hubRearLeft: 'hub_lb', hubFrontRight: 'hub_rf', length: '4.69' } };
 export const MANUAL_X = 'https://service.tesla.com/docs/ModelX/ServiceManual/Palladium/en-us/';
 export const IMG_X = '/manual/modelx/';
-/** Model X GLB는 STL 기반이라 부품 이름이 없다. 원본 축(앞 +z, 왼쪽 +x)으로 맞춘다. Sketchfab David_Holiday, CC BY 4.0 */
+/** Model X GLB는 STL 기반이라 부품 이름이 없다. 원본 축(앞 +z, 왼쪽 +x)으로 맞춘다. Sketchfab David_Holiday, CC BY 4.0 (MODEL_CREDITS) */
 export const MODELX = { assetUrl: '/models/tesla-model-x.glb', meshManifest: { forward: '+z', left: '+x', length: '5.04' } };
 export type ModelAsset = typeof MODEL3 | typeof MODELX;
 

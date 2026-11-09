@@ -73,7 +73,6 @@ npm run lint    # oxlint
 npm run build   # tsc -b + vite build
 ```
 
-- 아직 머지되지 않은 최신 화면은 PR 브랜치에 있음 (`feature/repair-flow`, 리뷰 반영은 `fix/review-followups`)
 - 목 상태는 브라우저 `localStorage`에 남아 같은 브라우저의 창끼리 공유됨. 초기화: `localStorage.removeItem('repair-thread-mock-v1')`
 - 자세한 실행 안내와 시연 순서: [docs/local-preview.md](docs/local-preview.md)
 
@@ -246,8 +245,9 @@ flowchart TB
 - [x] 기획: 문제 정의, 근거, 기능, 유스케이스, 정책, 아키텍처
 - [x] API 명세·데이터 사전, 테스트케이스 기획, AWS·EKS 배포 기획
 - [x] 해커톤 가이드 기준 리뷰와 반영 ([리뷰](docs/review-mentor-guide.md))
-- [x] 프론트엔드: 정비사·공장 화면, 3D 뷰어, 목 API (PR #2 머지, #6~#9 리뷰 중)
-- [ ] 매뉴얼 그림·3D 모델 출처 정리 (D24, 팀 결정)
+- [x] 프론트엔드: 정비사·공장 화면, 3D 뷰어, 목 API (PR #2·#6~#9 머지)
+- [x] 3D 모델 출처 등록 (Sketchfab, CC BY 4.0)
+- [ ] 매뉴얼 그림 공개 범위 (D24, 팀 결정)
 - [ ] 남은 P0 테스트, 데모 전 측정 ([기획서 10장](docs/planning.md#10-기대효과와-지표))
 - [ ] 리허설 3회 연속 통과
 
@@ -269,8 +269,9 @@ flowchart TB
 ## 10. 출처와 라이선스
 
 - 정비 절차·토크·공구·그림: [Tesla Model 3](https://service.tesla.com/docs/Model3/ServiceManual/en-us/) · [Model X](https://service.tesla.com/docs/ModelX/ServiceManual/Palladium/en-us/) Service Manual 참고. 그림의 저작권은 Tesla에 있음. 저장소 공개 범위는 팀 결정 대기 (D24)
-- Model X 3D 모델: David_Holiday (Sketchfab), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)
-- Model 3 3D 모델: 출처 확인 중
+- 3D 모델 (Sketchfab, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). 웹용으로 glTF-Transform 압축·변환함. 시연 화면 왼쪽 아래에도 같은 표기가 있음
+  - Model 3: ["Tesla model 3"](https://sketchfab.com/3d-models/tesla-model-3-5af35a4772f240039a6e58c58998555b) by [dannzjs](https://sketchfab.com/dannzjs)
+  - Model X: ["Tesla Model X"](https://sketchfab.com/3d-models/tesla-model-x-5c08f723bfc94a98b7d7918e3e4ff1dc) by [David_Holiday](https://sketchfab.com/David_Holiday)
 - VIN, 고장코드 번호, 건수, 시간, 팁, 인물은 모두 예시 데이터임. 실제 진단·정비에 쓰지 않음
 
 ## 11. 팀

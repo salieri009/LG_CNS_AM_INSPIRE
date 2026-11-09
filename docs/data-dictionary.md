@@ -13,8 +13,9 @@
 | PROCEDURE | profile\_id, target\_part\_id, asset\_id, version, source\_ref, access\_level, standard\_minutes | 정비 절차와 표준 시간 | 3D 가이드 |
 | PROCEDURE\_STEP | step\_order, phase, fastener\_type, requires\_hv\_ack, highlight\_nodes, fallback\_image\_key | 단계별 체결 방식, 고전압 확인, 강조 부품, 2D 대체 | 3D 가이드 |
 | MODEL\_ASSET | version, object\_key, mesh\_manifest | 3D 모델 파일 | 3D 가이드 / 3D 모델 저장소 |
-| KNOWLEDGE\_ENTRY | step\_id, author\_id, parent\_id, entry\_type, body, visibility | 정비사 팁, 기술 문의, 제조사 답변 (답글 구조) | 3D 가이드 |
-| ATTACHMENT | entry\_id, object\_key, media\_type | 팁 사진 | 3D 가이드 / 3D 모델 저장소 |
+| KNOWLEDGE\_ENTRY | step\_id, author\_id, parent\_id, entry\_type, body, visibility | 정비사 팁, 기술 문의, 제조사 답변 (답글 구조) | knowledge |
+| ATTACHMENT | entry\_id, object\_key, media\_type | 팁 사진 | knowledge / 파일 저장소 (S3) |
+| VOTE | entry\_id, voter\_id, vote\_type (HELPFUL·REPORT), created\_at, UK(entry\_id, voter\_id, vote\_type) | 팁 추천 1인 1회, 신고 3건 이상이면 숨김 (8-7) | knowledge |
 | APP\_USER | organization\_id, role, clearance\_level | 조직·역할·권한 등급 | Gateway 인증 |
 | REPAIR\_JOB | vehicle\_id, profile\_id, technician\_id, status, symptoms, data\_origin, completion\_fingerprint | 정비 작업. 시연/실제 구분, 완료 중복 방지 키 | 정비 기록 / 정비 DB |
 | JOB\_DTC\_RESULT | dtc\_code, outcome, actual\_cause\_part\_id, cause\_category | 고장코드별 실제 원인 | 정비 기록 / 정비 DB |

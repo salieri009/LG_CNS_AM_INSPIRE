@@ -9,9 +9,9 @@
 | 1 | POST /api/v1/vehicle-lookups | A① | 진단 (→ 생산 연동) | vehicleId·profileId 또는 미등록 안내 |
 | 2 | POST /api/v1/repair-jobs | A① A② | 진단 (→ 정비 기록 이력) | jobId, 후보, 공식 순서, 관측 비율, n |
 | 3 | POST /api/v1/repair-jobs/{id}/tasks | A③ | 3D 가이드 | taskId, 절차 버전, 단계, 모델·2D 경로 |
-| 4 | GET /api/v1/procedure-steps/{id}/knowledge | A③ 단계 팁 | 3D 가이드 (Step Knowledge Manager) | 공식 설명과 구분된 팁·제조사 답변 |
+| 4 | GET /api/v1/procedure-steps/{id}/knowledge | A③ 단계 팁 | knowledge (D22) | 공식 설명과 구분된 팁·제조사 답변 |
 | 5 | PUT /api/v1/tasks/{id}/steps/{stepId}/ack | A③ 고전압 | 3D 가이드 (Safety Warning Manager) | 사용자·절차 버전·확인 시각 저장, 다음 단계 허용 |
-| 6 | PUT /api/v1/repair-jobs/{id}/completion | A④ | 정비 기록 (공개 동의 메모는 → 3D 가이드 팁 등록) | 검증 후 한 트랜잭션 저장, 같은 재전송은 중복 없음 |
+| 6 | PUT /api/v1/repair-jobs/{id}/completion | A④ | 정비 기록 (공개 동의 메모는 → knowledge 팁 등록) | 검증 후 한 트랜잭션 저장, 같은 재전송은 중복 없음 |
 | 7 | GET /api/v1/manufacturer/metrics | B | 분석 (→ 정비 기록 집계 조회) | 식별정보 없는 지표, 표본 수, 갱신 시점 |
 
 ## 관련 정책

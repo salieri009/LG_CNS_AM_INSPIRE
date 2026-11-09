@@ -168,7 +168,7 @@ flowchart TB
 | 항목 | 규모 | 문서 |
 | --- | --- | --- |
 | API | 7개 (`/api/v1/vehicle-lookups` ~ `/api/v1/manufacturer/metrics`) | [api-spec.md](docs/api-spec.md) |
-| 데이터 | 테이블 14개, 서비스별 소유 | [data-dictionary.md](docs/data-dictionary.md) |
+| 데이터 | 테이블 15개, 서비스별 소유 | [data-dictionary.md](docs/data-dictionary.md) |
 | 테스트 | 53개, 시연 전 필수 P0 15개 | [test-plan.md](docs/test-plan.md) |
 
 ## 6. Key Decisions
@@ -200,7 +200,7 @@ flowchart TB
 | --- | --- |
 | [기획서](docs/planning.md) | 문제 정의부터 발표 구성까지 15장 |
 | [API 명세](docs/api-spec.md) | API 7개와 권한·안전·집계 정책 |
-| [데이터 사전](docs/data-dictionary.md) | 테이블 14개, 소유 서비스·저장소 |
+| [데이터 사전](docs/data-dictionary.md) | 테이블 15개, 소유 서비스·저장소 |
 | [테스트케이스 기획](docs/test-plan.md) | 53개 (P0 15개), 경계값 픽스처, 리허설 순서 |
 | [EKS 배포 기획](docs/deployment-eks.md) | 서비스 분리, 탄력 설계, 매니페스트 예시, CI/CD, 비용·리스크 |
 | [가이드 기준 리뷰](docs/review-mentor-guide.md) | 8항목 판정, 체크리스트, 범위 칼질, 발표·Q&A |

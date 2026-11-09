@@ -670,7 +670,7 @@ flowchart LR
 
 ### 12-1. 시스템 아키텍처 (팀 C4 다이어그램 기준)
 
-> 배포 기준으로는 auth와 knowledge를 더 나눔 (D22). 서비스별 배포 단위는 [14-1](#14-1-서비스-분리-d22) 참고.
+> 배포 기준으로는 auth와 knowledge를 더 나눔 (D22). 단계 팁·제조사 답변·추천·신고·팁 사진은 3D 가이드가 아니라 **knowledge 서비스**가 맡음. 아래 그림은 팀 C4 원본(서비스 5개)이고, 서비스별 배포 단위는 [14-1](#14-1-서비스-분리-d22) 참고.
 
 ```mermaid
 flowchart TB
@@ -681,7 +681,7 @@ flowchart TB
     GW[API Gateway<br/>인증·권한·제조사 범위·라우팅]
     DASH[공장 대시보드<br/>제조사 범위 집계 지표]
     DIAG[진단 서비스<br/>원인 후보 추천 · A① A②]
-    GUIDE[3D 가이드 서비스<br/>분해 경로·안전 경고·단계 팁 · A③]
+    GUIDE[3D 가이드 서비스<br/>분해 경로·안전 경고 · A③]
     REC[정비 기록 서비스<br/>결과·시간·막힌 단계 · A④]
     ANA[분석 서비스<br/>난이도·빈도·사양 비교 · B]
     PI[생산 연동 서비스<br/>제조사 시스템 호출·접근 통제]
@@ -719,8 +719,9 @@ flowchart TB
 | 서비스 | 컴포넌트 | 책임 |
 | --- | --- | --- |
 | 진단 (Diagnosis) | VIN Parser · DTC Analyzer · Vehicle Specification Resolver · Fault Statistics Calculator · Repair Recommendation Engine | VIN 형식 확인과 차량 키 생성, DTC 정규화, 사양 확인, 과거 이력에서 원인 통계 계산, 원인 후보 정렬 (A① A②) |
-| 3D 가이드 (3D Repair Guide) | Part Identifier · Disassembly Path Manager · Repair Step Provider · Safety Warning Manager · Step Knowledge Manager (추가) | 사양별 대상 부품 식별, 분해 경로·순서, 단계별 작업·체결 방식, 고전압 등 위험 경고, 단계별 정비사 팁·제조사 답변 관리 (A③) |
-| 정비 기록 (Repair Record) | Repair Record Controller · Repair Result Validator · Mechanic Feedback Processor · Repair History Repository | 기록 API, 결과 검증, 막힌 단계·모듈 교체·메모 정리(규칙 기반, D19), 공개 동의한 메모는 3D 가이드 서비스에 팁 등록 요청, 이력 저장·조회 (A④) |
+| 3D 가이드 (3D Repair Guide) | Part Identifier · Disassembly Path Manager · Repair Step Provider · Safety Warning Manager | 사양별 대상 부품 식별, 분해 경로·순서, 단계별 작업·체결 방식, 고전압 등 위험 경고 (A③) |
+| knowledge (D22에서 분리) | Step Knowledge Manager · Vote Manager | 단계별 정비사 팁·기술 문의·제조사 답변, 추천 1인 1회, 신고 숨김, 팁 사진 (A③ 툴팁, API 4) |
+| 정비 기록 (Repair Record) | Repair Record Controller · Repair Result Validator · Mechanic Feedback Processor · Repair History Repository | 기록 API, 결과 검증, 막힌 단계·모듈 교체·메모 정리(규칙 기반, D19), 공개 동의한 메모는 knowledge 서비스에 팁 등록 요청, 이력 저장·조회 (A④) |
 | 분석 (Analytics) | Repair Difficulty Calculator · Failure Frequency Analyzer · Specification Comparison Analyzer · Design Improvement Generator · Factory Dashboard API | 난이도, 고장 빈도, 사양 비교, 개선 후보(규칙 템플릿, D19), 제조사 범위 필터 집계 응답 (B①\~④). 별도 DB 없이 정비 DB 집계 조회 |
 | 생산 연동 (Production Integration) | (C4에 세부 없음) | 제조사 시스템 호출, 생산 이력·사양 접근 통제 |
 
@@ -738,7 +739,7 @@ flowchart TB
 **확정 사항 (팀 답변 2026-11-09 17시 24분)**
 
 - 아키텍처는 **마이크로서비스(C4 기준)**. Miro 01 프레임의 단일 백엔드안은 참고용 (D21)
-- 정비사 팁·제조사 답변(KNOWLEDGE\_ENTRY, API 4번)은 **3D 가이드 서비스**의 Step Knowledge Manager가 맡음. 단계 데이터와 같은 서비스에 있어야 단계별 조회가 한 번에 끝남
+- ~~정비사 팁·제조사 답변(KNOWLEDGE\_ENTRY, API 4번)은 3D 가이드 서비스의 Step Knowledge Manager가 맡음~~ → **D22에서 knowledge 서비스로 분리**. 단계별 한 번 조회 이점은 포기하고, 웹앱이 단계(API 3)와 팁(API 4)을 병렬로 호출함
 - **분석 DB는 두지 않음**. 분석 서비스는 정비 기록 서비스의 집계 조회 API로 지표를 계산 (다른 서비스 DB 직접 접근은 하지 않음)
 - Mechanic Feedback Processor(메모 정리)와 Design Improvement Generator(개선 후보)는 **규칙 기반** (D19)
 
@@ -794,6 +795,7 @@ sequenceDiagram
   participant App as 정비사 앱
   participant Dx as 진단 서비스
   participant G as 3D 가이드 서비스
+  participant K as knowledge 서비스
   participant DB as 정비 DB
   participant MS as 3D 모델 저장소
   App->>Dx: 1 VIN·고장코드·증상 (A①)
@@ -803,15 +805,15 @@ sequenceDiagram
   Note over App: 5 후보 부품 선택
   App->>G: 6 접근 경로 요청 (A③)
   G->>MS: 7 3D 모델·분해 단계 로드
-  G->>G: 8 단계별 팁·제조사 답변
-  Note over G: 9 체결·고전압·시간 표시
-  G-->>App: 10 3D 경로 + 단계 툴팁
+  G-->>App: 8 3D 경로 · 체결·고전압·시간
+  App->>K: 9 단계별 팁 요청 (API 4, 단계마다 병렬)
+  K-->>App: 10 공식 설명 + 상위 팁 3개 + 제조사 답변
 ```
 
-원인 후보 확률(3번)은 같은 차종·사양의 정비 기록 통계에서 나오고 표본 수가 같이 옴. 정비사가 후보를 고르면(5번) 3D 경로 서비스가 모델·분해 단계와 단계별 상위 팁을 묶어(7·8번) 체결 방식·고전압·예상 시간과 함께 보여줌(9번).
+원인 후보 확률(3번)은 같은 차종·사양의 정비 기록 통계에서 나오고 표본 수가 같이 옴. 정비사가 후보를 고르면(5번) 3D 가이드 서비스가 모델·분해 단계를 체결 방식·고전압·예상 시간과 함께 돌려주고(7·8번), 앱이 단계별 팁을 knowledge 서비스에서 따로 받아 툴팁에 붙임(9·10번, D22).
 
 - 3D 로드 실패나 저사양 기기: 같은 단계 정보를 2D 이미지 목록으로 보여줌
-- 신입 모드(A⑤): 10번 응답을 체크리스트 형태로 렌더링, 고전압 단계는 확인 체크 전 잠금
+- 신입 모드(A⑤): 8번 응답을 체크리스트 형태로 렌더링, 고전압 단계는 확인 체크 전 잠금
 
 ### 12-4. 시퀀스: 정비 결과 기록 → 원인 통계·공장 지표 갱신 (A④ → B)
 
@@ -876,9 +878,9 @@ stateDiagram-v2
 | 1 | POST /api/v1/vehicle-lookups | A① | 진단 (→ 생산 연동) | vehicleId·profileId 또는 미등록 안내 |
 | 2 | POST /api/v1/repair-jobs | A① A② | 진단 (→ 정비 기록 이력) | jobId, 후보, 공식 순서, 관측 비율, n |
 | 3 | POST /api/v1/repair-jobs/{id}/tasks | A③ | 3D 가이드 | taskId, 절차 버전, 단계, 모델·2D 경로 |
-| 4 | GET /api/v1/procedure-steps/{id}/knowledge | A③ 단계 팁 | 3D 가이드 (Step Knowledge Manager) | 공식 설명과 구분된 팁·제조사 답변 |
+| 4 | GET /api/v1/procedure-steps/{id}/knowledge | A③ 단계 팁 | knowledge (D22) | 공식 설명과 구분된 팁·제조사 답변 |
 | 5 | PUT /api/v1/tasks/{id}/steps/{stepId}/ack | A③ 고전압 | 3D 가이드 (Safety Warning Manager) | 사용자·절차 버전·확인 시각 저장, 다음 단계 허용 |
-| 6 | PUT /api/v1/repair-jobs/{id}/completion | A④ | 정비 기록 (공개 동의 메모는 → 3D 가이드 팁 등록) | 검증 후 한 트랜잭션 저장, 같은 재전송은 중복 없음 |
+| 6 | PUT /api/v1/repair-jobs/{id}/completion | A④ | 정비 기록 (공개 동의 메모는 → knowledge 팁 등록) | 검증 후 한 트랜잭션 저장, 같은 재전송은 중복 없음 |
 | 7 | GET /api/v1/manufacturer/metrics | B | 분석 (→ 정비 기록 집계 조회) | 식별정보 없는 지표, 표본 수, 갱신 시점 |
 
 ### 12-7. 데이터 사전 요약 (팀 ERD 02·03)
@@ -894,8 +896,9 @@ stateDiagram-v2
 | PROCEDURE | profile\_id, target\_part\_id, asset\_id, version, source\_ref, access\_level, standard\_minutes | 정비 절차와 표준 시간 | 3D 가이드 |
 | PROCEDURE\_STEP | step\_order, phase, fastener\_type, requires\_hv\_ack, highlight\_nodes, fallback\_image\_key | 단계별 체결 방식, 고전압 확인, 강조 부품, 2D 대체 | 3D 가이드 |
 | MODEL\_ASSET | version, object\_key, mesh\_manifest | 3D 모델 파일 | 3D 가이드 / 3D 모델 저장소 |
-| KNOWLEDGE\_ENTRY | step\_id, author\_id, parent\_id, entry\_type, body, visibility | 정비사 팁, 기술 문의, 제조사 답변 (답글 구조) | 3D 가이드 |
-| ATTACHMENT | entry\_id, object\_key, media\_type | 팁 사진 | 3D 가이드 / 3D 모델 저장소 |
+| KNOWLEDGE\_ENTRY | step\_id, author\_id, parent\_id, entry\_type, body, visibility | 정비사 팁, 기술 문의, 제조사 답변 (답글 구조) | knowledge |
+| ATTACHMENT | entry\_id, object\_key, media\_type | 팁 사진 | knowledge / 파일 저장소 (S3) |
+| VOTE | entry\_id, voter\_id, vote\_type (HELPFUL·REPORT), created\_at, UK(entry\_id, voter\_id, vote\_type) | 팁 추천 1인 1회, 신고 3건 이상이면 숨김 (8-7) | knowledge |
 | APP\_USER | organization\_id, role, clearance\_level | 조직·역할·권한 등급 | Gateway 인증 |
 | REPAIR\_JOB | vehicle\_id, profile\_id, technician\_id, status, symptoms, data\_origin, completion\_fingerprint | 정비 작업. 시연/실제 구분, 완료 중복 방지 키 | 정비 기록 / 정비 DB |
 | JOB\_DTC\_RESULT | dtc\_code, outcome, actual\_cause\_part\_id, cause\_category | 고장코드별 실제 원인 | 정비 기록 / 정비 DB |

@@ -2,7 +2,12 @@ import type { KnowledgeEntry, PartBox, ProcedureStep } from '../../api/types';
 
 export const MANUAL = 'https://service.tesla.com/docs/Model3/ServiceManual/en-us/';
 export const IMG = '/manual/model3/';
-export const MODEL3 = { assetUrl: '/models/tesla-model3.glb', meshManifest: { door: 'door_lr', hubFrontLeft: 'hub_lf', hubRearLeft: 'hub_lb', hubFrontRight: 'hub_rf' } };
+export const MODEL3 = { assetUrl: '/models/tesla-model3.glb', meshManifest: { door: 'door_lr', hubFrontLeft: 'hub_lf', hubRearLeft: 'hub_lb', hubFrontRight: 'hub_rf', length: '4.69' } };
+export const MANUAL_X = 'https://service.tesla.com/docs/ModelX/ServiceManual/Palladium/en-us/';
+export const IMG_X = '/manual/modelx/';
+/** Model X GLB는 STL 기반이라 부품 이름이 없다. 원본 축(앞 +z, 왼쪽 +x)으로 맞춘다. Sketchfab David_Holiday, CC BY 4.0 */
+export const MODELX = { assetUrl: '/models/tesla-model-x.glb', meshManifest: { forward: '+z', left: '+x', length: '5.04' } };
+export type ModelAsset = typeof MODEL3 | typeof MODELX;
 
 export interface SeedCandidate {
   partId: string; partName: string; officialOrder: number; checkMethod: string;
@@ -12,9 +17,13 @@ export interface SeedCandidate {
 export interface ProcedureSeed {
   procedureId: string; procedureVersion: string; targetPartId: string; targetPartName: string;
   standardMinutes: number; sourceRef: string; heroImage?: string;
-  partSet: 'door-rl' | 'boxes'; parts?: PartBox[]; steps: ProcedureStep[];
+  partSet: 'door-rl' | 'boxes'; parts?: PartBox[]; steps: ProcedureStep[]; afterSteps?: string[];
+  /** 실제 메쉬를 재서 정한 부품 배치 영역(차량 좌표). 부품이 벗어나면 테스트가 실패한다 */
+  zone?: { min: [number, number, number]; max: [number, number, number]; /** 후드처럼 기울어진 천장 선 (x, y 점들). 숨은 부품의 윗면이 이 선 아래여야 한다 */ ceiling?: [number, number][] };
 }
 export interface CaseSeed {
+  /** 이 사례가 속한 차종 (없으면 Tesla Model 3) */
+  vehicle?: string; model?: ModelAsset;
   code: string; description: string; symptom: string; searches: number;
   candidates: SeedCandidate[];
   procedures: ProcedureSeed[];

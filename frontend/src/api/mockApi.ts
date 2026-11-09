@@ -1,6 +1,6 @@
 // 백엔드(Spring Boot 서비스)가 준비되기 전 쓰는 메모리 기반 목 API.
 // 같은 RepairThreadApi 인터페이스를 HTTP 구현으로 바꾸면 화면 코드는 그대로 쓴다.
-import { CASES, KNOWLEDGE, METRICS, VEHICLES } from '../mocks/seed';
+import { CASES, KNOWLEDGE, METRICS, VEHICLES, caseVehicle } from '../mocks/seed';
 import { MODEL3, type CaseSeed } from '../mocks/cases/types';
 import type { Candidate, RepairThreadApi, StepAck } from './types';
 
@@ -12,13 +12,14 @@ export function createMockApi({ delayMs = 250 } = {}): RepairThreadApi {
   const metrics = METRICS.map(m => ({ ...m }));
   const completed = new Set<string>();
   const acks = new Map<string, StepAck>();
-  const jobs = new Map<string, { vehicleId: string; code: string }>();
+  const knowledge = KNOWLEDGE.map(k => ({ ...k, isPublic: true }));
+  const jobs = new Map<string, { vehicleId: string; code: string; vehicle: string }>();
   let seq = 0;
   const wait = <T>(v: T) => new Promise<T>(r => setTimeout(() => r(v), delayMs));
   const caseOf = (jobId: string) => {
     const j = jobs.get(jobId);
     if (!j) throw new Error('없는 정비 작업입니다.');
-    return cases.find(c => c.code === j.code)!;
+    return cases.find(c => c.code === j.code && caseVehicle(c) === j.vehicle)!;
   };
 
   return {
@@ -30,10 +31,12 @@ export function createMockApi({ delayMs = 250 } = {}): RepairThreadApi {
 
     async createRepairJob({ vehicleId, dtcCodes }) {
       const code = (dtcCodes[0] ?? '').trim().toUpperCase();
-      const c = cases.find(x => x.code === code);
+      const vehicle = Object.values(VEHICLES).find(v => v.vehicleId === vehicleId)?.model ?? 'Tesla Model 3';
+      // 같은 고장코드라도 차종마다 절차가 다르므로 차종과 코드를 함께 본다
+      const c = cases.find(x => x.code === code && caseVehicle(x) === vehicle);
       if (!c) throw new Error(`이 차종에 등록되지 않은 고장코드입니다: ${code}`);
       const jobId = `job-${++seq}`;
-      jobs.set(jobId, { vehicleId, code });
+      jobs.set(jobId, { vehicleId, code, vehicle });
       const candidates: Candidate[] = [...c.candidates].sort((a, b) => a.officialOrder - b.officialOrder).map(x => {
         const raw = { count: x.count, n: x.n };
         const p = c.procedures.find(pr => pr.procedureId === x.procedureId);
@@ -53,11 +56,18 @@ export function createMockApi({ delayMs = 250 } = {}): RepairThreadApi {
       const p = c.procedures.find(pr => pr.procedureId === cand?.procedureId);
       if (!p) throw new Error('이 원인은 시연 범위에 절차가 없습니다.');
       const { heroImage: _hero, ...rest } = p;
-      return wait({ taskId: `${jobId}-task`, jobId, model: MODEL3, ...rest });
+      return wait({ taskId: `${jobId}-task`, jobId, model: c.model ?? MODEL3, ...rest });
     },
 
     async getStepKnowledge(stepId) {
-      return wait(KNOWLEDGE.filter(k => k.stepId === stepId));
+      return wait(knowledge.filter(k => k.stepId === stepId && k.isPublic).map(({ isPublic: _p, ...k }) => k));
+    },
+
+    async addKnowledge(stepId, body, isPublic) {
+      const entry = { entryId: `k-mine-${++seq}`, stepId, type: 'tip' as const, author: '나', body: body.trim(), helpful: 0 };
+      if (!entry.body) throw new Error('팁 내용을 적어 주세요.');
+      knowledge.unshift({ ...entry, isPublic });
+      return wait(entry);
     },
 
     async ackStep(taskId, stepId) {

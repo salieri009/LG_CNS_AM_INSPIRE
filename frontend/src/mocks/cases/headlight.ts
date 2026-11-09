@@ -2,12 +2,15 @@ import { IMG, MANUAL, steps, type CaseSeed } from './types';
 import type { PartBox } from '../../api/types';
 
 // 헤드램프 하나를 바꾸려면 앞 범퍼 커버 전체를 떼야 한다 (조립 효율 vs 정비 용이성 사례).
+// Model 3 실측(원본 GLB 노드·측면 투영, 2026-11-10): 앞 범퍼 x 1.73~2.35 y 0.14~0.65, 왼쪽 헤드램프 x 1.70~2.15 y 0.60~0.80 z -0.87~-0.45,
+// 리어 언더후드 에이프런(frunkplastic) x 1.00~1.48 y 0.77~0.92, 후드 선 y 0.93(x 1.4)~0.78(x 1.97), 바닥 y 0.17, 뒷바퀴 축 x -1.44
+const FRONT_ZONE = { min: [0.95, 0.12, -0.95] as [number, number, number], max: [2.36, 0.95, 0.98] as [number, number, number], ceiling: [[0.95, 1.0], [1.4, 0.93], [1.97, 0.78], [2.36, 0.55]] as [number, number][] };
 const P: Record<string, PartBox> = {
-  frunk: { key: 'frunk', name: '프렁크 수납함', box: [1.72, 0.62, 0, 0.5, 0.22, 0.95], offset: [0, 0.7, 0] },
-  fascia: { key: 'fascia', name: '앞 범퍼 커버', box: [2.24, 0.52, 0, 0.18, 0.42, 1.78], offset: [0.9, 0, 0] },
-  headConn: { key: 'headConn', name: '헤드램프 커넥터', box: [1.86, 0.76, -0.56, 0.05, 0.04, 0.05], offset: [0.05, 0.2, -0.25] },
-  bracket: { key: 'bracket', name: '펜더 브래킷', box: [1.95, 0.82, -0.78, 0.12, 0.04, 0.06], offset: [0, 0.3, -0.35] },
-  headlight: { key: 'headlight', name: '헤드램프 (LH)', box: [2.05, 0.76, -0.6, 0.34, 0.12, 0.3], offset: [0.75, 0.2, -0.45] },
+  frunk: { key: 'frunk', name: '프렁크 수납함', box: [1.72, 0.62, 0, 0.5, 0.22, 0.95], offset: [0, 0.7, 0], shape: 'tub' },
+  fascia: { key: 'fascia', name: '앞 범퍼 커버', box: [2.225, 0.4, 0.03, 0.25, 0.5, 1.85], offset: [0.9, 0, 0], shape: 'surface' },
+  headConn: { key: 'headConn', name: '헤드램프 커넥터', box: [1.86, 0.7, -0.56, 0.05, 0.04, 0.05], offset: [0.05, 0.2, -0.25], shape: 'connector' },
+  bracket: { key: 'bracket', name: '펜더 브래킷', box: [1.95, 0.72, -0.78, 0.12, 0.04, 0.06], offset: [0, 0.3, -0.35], shape: 'panel' },
+  headlight: { key: 'headlight', name: '헤드램프 (LH)', box: [1.925, 0.7, -0.66, 0.45, 0.2, 0.42], offset: [0.75, 0.2, -0.45], shape: 'surface' },
 };
 const CAM = { position: [4.1, 1.55, -2.3] as [number, number, number], target: [1.95, 0.68, -0.35] as [number, number, number] };
 
@@ -21,7 +24,7 @@ export const HEADLIGHT_CASE: CaseSeed = {
   ],
   procedures: [{
     procedureId: 'proc-headlight-lh', procedureVersion: 'M3-2017-2023 / 17400102', targetPartId: 'part-headlight-lh', targetPartName: '헤드램프 어셈블리 (LH)',
-    standardMinutes: 54, sourceRef: MANUAL + 'GUID-FF5D0BE4-B85F-4616-B3B6-0908123A45F4.html', heroImage: IMG + 'FF5D0BE4-hero.jpg', partSet: 'boxes',
+    standardMinutes: 54, sourceRef: MANUAL + 'GUID-FF5D0BE4-B85F-4616-B3B6-0908123A45F4.html', heroImage: IMG + 'FF5D0BE4-hero.jpg', partSet: 'boxes', zone: FRONT_ZONE,
     parts: [P.frunk, P.fascia, P.headConn, P.bracket, P.headlight],
     steps: steps('head', [
       { title: '서비스 모드 켜고 프렁크 수납함 탈거', description: '터치스크린에서 서비스 모드를 켜고, 언더후드 에이프런과 프렁크 수납함을 떼어 냅니다.', fastenerType: 'clip', minutes: 10, requiresHvAck: false, highlightNodes: ['frunk'], camera: { position: [3.4, 2.6, -1.6], target: [1.7, 0.6, 0] } },

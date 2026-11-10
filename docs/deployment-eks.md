@@ -2,7 +2,7 @@
 
 > [기획서 14장](planning.md#14-aws-배포-기획-kubernetes--eks)과 같은 내용. 장 번호는 [기획서](planning.md) 기준이고, 배포 검증 테스트는 [테스트케이스 기획](test-plan.md#13-5-배포-검증-kubernetes) 참고. 구성도 원본 스펙은 [images/src/aws-eks.json](images/src/aws-eks.json).
 
-서비스를 Deployment 11개로 나눠 서울 리전(ap-northeast-2) EKS Auto Mode 클러스터 하나에서 관리하고, 파드·노드·DB가 사용량에 따라 늘고 줄게 함 (14-3). 사용자 진입은 CloudFront 하나, 3D 모델은 S3, DB는 Aurora Serverless v2에 서비스별 스키마. 사양과 숫자는 해커톤 시연 기준 제안이고, DB 엔진(MySQL·PostgreSQL 호환)과 프론트 기술은 아직 미정임.
+서비스를 Deployment 11개로 나눠 서울 리전(ap-northeast-2) EKS Auto Mode 클러스터 하나에서 관리하고, 파드·노드·DB가 사용량에 따라 늘고 줄게 함 (14-3). 사용자 진입은 CloudFront 하나, 3D 모델은 S3, DB는 Aurora Serverless v2에 서비스별 스키마. 사양과 숫자는 해커톤 시연 기준 제안임. 프론트는 React 19 + Vite(정적 파일), 백엔드는 지금 MySQL 8.4로 개발 중이라(PR #18, D25) Aurora도 MySQL 호환을 기본으로 둠 (팀 확인 필요).
 
 ## 14-1. 서비스 분리 (D22)
 
@@ -16,7 +16,7 @@
 | web-factory | 공장 대시보드 정적 파일 (Nginx) | 공장 대시보드 | 없음 | 0\~2 (시연 시간만 켬) |
 | gateway | 라우팅, 토큰 검증, 제조사 범위 전달 | API Gateway | 없음 | 1\~3 |
 | auth (분리) | 로그인, 토큰 발급, 권한 등급 L1\~L3 | Gateway 인증 | auth 스키마 (APP\_USER) | 1\~2 |
-| diagnosis | A① A② 원인 후보·점검 순서 | 진단 | 없음 (호출만, 공식 순서는 시드) | 1\~4 |
+| diagnosis | A① A② 원인 후보·점검 순서 | 진단 | diagnosis 스키마 (DIAGNOSTIC\_RULE 참조 데이터, 시드로 적재). 사양·이력은 호출 | 1\~4 |
 | guide | A③ 분해 경로, 단계, 고전압 확인 | 3D 가이드 | guide 스키마 (PROCEDURE, PROCEDURE\_STEP, MODEL\_ASSET) + S3 | 1\~4 |
 | knowledge (분리) | 단계 팁, 제조사 답변, 추천, 신고, 사진 (API 4) | 3D 가이드의 Step Knowledge Manager | knowledge 스키마 (KNOWLEDGE\_ENTRY, ATTACHMENT, VOTE) + S3 | 1\~2 |
 | record | A④ 정비 결과, 집계 조회 API | 정비 기록 | record 스키마 (정비 DB) | 1\~3 |
@@ -36,7 +36,7 @@
 | 엣지 | S3 (repair-thread-assets) | 3D 모델, 2D 대체 이미지, 팁 사진. 퍼블릭 차단, 읽기는 CloudFront OAC로만, 업로드는 서명 URL |
 | VPC 10.0.0.0/16 | 퍼블릭 서브넷 2개 (2 AZ) | ALB, NAT Gateway 1개. ALB 보안 그룹은 CloudFront origin-facing 관리형 접두사 목록만 허용 |
 | VPC | 프라이빗 앱 서브넷 2개 | EKS Auto Mode 노드. 인스턴스 종류와 대수는 파드 요청량에 맞춰 자동, Spot 우선 (14-3) |
-| VPC | 프라이빗 데이터 서브넷 2개 | Aurora Serverless v2 클러스터 1개, 스키마 5개 (auth, guide, knowledge, record, production). 스키마마다 DB 계정을 따로 두어 다른 서비스 테이블은 권한으로 막음 |
+| VPC | 프라이빗 데이터 서브넷 2개 | Aurora Serverless v2 클러스터 1개, 스키마 6개 (auth, diagnosis, guide, knowledge, record, production. 백엔드 Flyway 스키마와 같음). 스키마마다 DB 계정을 따로 두어 다른 서비스 테이블은 권한으로 막음 |
 | 클러스터 | EKS Auto Mode | Load Balancer Controller·VPC CNI·CoreDNS를 AWS가 관리. Ingress 하나로 ALB 생성: `/` web-mechanic, `/factory` web-factory, `/api` gateway |
 | 클러스터 | 네임스페이스 | repair-thread (앱 10개 + 시드 Job), mock (manufacturer-mock) |
 | 관리형 | ECR | 서비스별 리포지토리, 이미지 태그 = 커밋 SHA |

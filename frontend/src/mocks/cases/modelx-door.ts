@@ -44,7 +44,7 @@ export const MODELX_LATCH_CASE: CaseSeed = {
     { partId: 'part-mx-fw-cincher', partName: '시칭 액추에이터', officialOrder: 2, checkMethod: '닫힘 끝 단계에서 당겨 잠그는 동작 확인', count: 9, n: 33, chronic: false, agree: 9, box: D.cincher },
     { partId: 'part-mx-fw-ecu', partName: '도어 보호 ECU·도어 모듈', officialOrder: 3, checkMethod: 'Toolbox로 도어 모듈 통신·오류 이력 확인', count: 6, n: 33, chronic: false, agree: 6, box: D.doorEcu },
     { partId: 'part-mx-fw-cal', partName: '도어 캘리브레이션 틀어짐', officialOrder: 4, checkMethod: '수동 캘리브레이션 후 증상 재현 확인', count: 3, n: 33, chronic: false, agree: 3 },
-    { partId: 'part-mx-lv', partName: 'LV 배터리 전압 저하', officialOrder: 5, checkMethod: 'Toolbox로 LV 배터리 상태 확인', count: 2, n: 33, chronic: false, agree: 2, procedureId: 'proc-mx-lv', highlightNode: 'battery' },
+    { partId: 'part-mx-lv', partName: 'LV 배터리 전압 저하', officialOrder: 5, checkMethod: 'Toolbox로 LV 배터리 상태 확인', count: 0, n: 33, chronic: false, agree: 0, procedureId: 'proc-mx-lv', highlightNode: 'battery' },
   ],
   procedures: [{
     procedureId: 'proc-mx-fw-latch', procedureVersion: 'MX-2021+ / Latch and Actuator Assembly - Rear - LH', targetPartId: 'part-mx-fw-latch', targetPartName: '팰컨 윙 래치·액추에이터 (LH)',

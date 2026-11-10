@@ -15,6 +15,7 @@ import { HEAT, HeatPart, type HeatItem } from './HeatPart';
 import { shapeOf } from './partShape';
 import { DEFAULT_MODEL } from './config';
 import { sceneParts, type CandidateFocus } from './sceneParts';
+import { followKey, type CameraFocus } from './cameraFollow';
 
 const OVERVIEW = { position: new THREE.Vector3(4.4, 2.6, -6.0), target: new THREE.Vector3(-0.3, 0.55, -0.2) };
 type Vec3 = [number, number, number];
@@ -142,7 +143,7 @@ function Scene({ task, stepIndex, onSelectStep, labelRef, candidate, model: pick
         {defs.map(d => <AnimatedPart key={`${sp.set}-${d.key}`} def={d} state={partState(d.key, stepIndex, steps, sp.target)} onSelect={select} />)}
       </group>
       {heat.filter(hi => shapeOf(hi.box) !== 'surface').map(hi => <HeatPart key={hi.box.key} item={hi} onSelect={onSelectHeat} />)}
-      <CameraRig xf={view?.local ? camXf : IDENTITY} view={view} />
+      <CameraRig xf={view?.local ? camXf : IDENTITY} view={view} focus={{ taskId: task?.taskId, stepIndex, candidateKey: candidate?.highlightNode ?? candidate?.box?.key }} />
     </>
   );
 }
@@ -156,8 +157,8 @@ function focusView(anchor: Vec3, xf: Xform): { position: Vec3; target: Vec3 } {
   return { position: p.toArray() as Vec3, target: t.toArray() as Vec3 };
 }
 
-/** 시점이 바뀌면 카메라가 그 시점으로 부드럽게 날아간다. 사용자가 직접 돌리면 따라가기를 멈춘다 */
-function CameraRig({ xf, view }: { xf: Xform; view?: { position: Vec3; target: Vec3 } }) {
+/** 시점이 바뀌면 카메라가 그 시점으로 부드럽게 날아간다. 사용자가 직접 돌리면 따라가기를 멈추고, 단계·후보·작업이 바뀌면 다시 따라간다 */
+function CameraRig({ xf, view, focus }: { xf: Xform; view?: { position: Vec3; target: Vec3 }; focus: CameraFocus }) {
   const camera = useThree(s => s.camera);
   const controls = useRef<OrbitControlsImpl>(null);
   const follow = useRef(true);
@@ -168,8 +169,9 @@ function CameraRig({ xf, view }: { xf: Xform; view?: { position: Vec3; target: V
     return { position: toWorld(view.position), target: toWorld(view.target) };
   }, [view, xf]);
   const goalKey = [...goal.position.toArray(), ...goal.target.toArray()].map(n => n.toFixed(2)).join(',');
+  const key = followKey(goalKey, focus);
   useFrame(() => {
-    if (lastKey.current !== goalKey) { lastKey.current = goalKey; follow.current = true; }
+    if (lastKey.current !== key) { lastKey.current = key; follow.current = true; }
     const c = controls.current; if (!c || !follow.current) return;
     camera.position.lerp(goal.position, 0.055);
     c.target.lerp(goal.target, 0.07);

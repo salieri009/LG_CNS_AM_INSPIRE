@@ -3,7 +3,7 @@ import { createMockApi } from '../api/mockApi';
 import { createRepairStore, recordDraft } from './useRepairStore';
 
 let store: ReturnType<typeof createRepairStore>;
-beforeEach(() => { store = createRepairStore(createMockApi({ delayMs: 0 })); });
+beforeEach(async () => { store = createRepairStore(createMockApi({ delayMs: 0 })); await store.getState().init(); });
 
 describe('repair store', () => {
   it('VIN 조회 뒤 고장코드를 고르면 원인 후보 화면이 되고 오른쪽 패널이 열린다', async () => {
@@ -209,5 +209,44 @@ describe('repair store · 공식 순서대로 점검', () => {
     store.getState().ruleOut(store.getState().job!.candidates[0].partId);
     await store.getState().pickCode('B1C12');
     expect(store.getState().ruledOut).toEqual([]);
+  });
+});
+
+describe('repair store · 잠시 나가기와 진단 취소', () => {
+  const VIN = '5YJ3E1EA0JF000000';
+
+  it('잠시 나가면 첫 화면으로 가고, 오늘 작업에 진행 중으로 남아 그 단계부터 이어할 수 있다', async () => {
+    await store.getState().lookup(VIN);
+    await store.getState().pickCode('B1A24');
+    await store.getState().startRepair(store.getState().job!.candidates[0].partId);
+    store.getState().next(); store.getState().next();
+    const id = store.getState().liveId!;
+    await store.getState().pauseRepair();
+    expect(store.getState().mode).toBe('idle');
+    expect(store.getState().task).toBeNull();
+    expect(store.getState().history.find(h => h.id === id)).toMatchObject({ status: 'live', step: 2 });
+    await store.getState().resume(id);
+    expect(store.getState().mode).toBe('repair');
+    expect(store.getState().step).toBe(2);
+  });
+
+  it('원인을 다시 고르는 화면에서 진단을 취소하면 오늘 작업에서 사라진다', async () => {
+    await store.getState().lookup(VIN);
+    await store.getState().pickCode('B1A24');
+    const jobId = store.getState().job!.jobId;
+    await store.getState().startRepair(store.getState().job!.candidates[0].partId);
+    store.getState().backToCandidates();
+    await store.getState().cancelDiagnosis();
+    const s = store.getState();
+    expect(s.mode).toBe('idle');
+    expect(s.error).toBe('');
+    expect(s.history.some(h => h.id === jobId)).toBe(false);
+  });
+
+  it('완료한 작업을 다시 보다가 취소하면 기록은 그대로 남는다', async () => {
+    const done = store.getState().history.find(h => h.status === 'done')!;
+    await store.getState().resume(done.id);
+    await store.getState().cancelDiagnosis();
+    expect(store.getState().history.find(h => h.id === done.id)?.status).toBe('done');
   });
 });

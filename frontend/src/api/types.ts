@@ -1,4 +1,4 @@
-// docs/api-spec.md 7개 API와 docs/data-dictionary.md 테이블 기준의 프론트 타입
+// docs/api-spec.md API 1~8과 구현 중 추가한 화면 보조 API, docs/data-dictionary.md 테이블 기준의 프론트 타입
 
 export type FastenerType = 'clip' | 'screw' | 'bolt' | 'connector' | 'cable' | 'adhesive' | 'module' | 'measure';
 
@@ -12,7 +12,8 @@ export interface VehicleLookup {
   plantLine: string;
 }
 
-export interface CreateRepairJobRequest { vehicleId: string; dtcCodes: string[]; symptoms: string[] }
+/** 고장코드는 한 번에 하나 (정비사가 직접 검색하는 구조) */
+export interface CreateRepairJobRequest { vehicleId: string; dtcCode: string; symptoms?: string[] }
 export interface ObservedRatio { count: number; n: number }
 /** 차량 좌표(앞 +x, 위 +y, 왼쪽 -z, 바닥 0, 단위 m)의 상자 부품 */
 export interface PartBox {
@@ -49,7 +50,10 @@ export interface Candidate {
   observed: ObservedRatio | null;
   /** 30건 미만이라도 참고용으로 보여 줄 원 데이터 */
   observedRaw: ObservedRatio;
+  /** 같은 고장코드·같은 공식 순서의 다른 차종 절차 (VIN마다 절차가 다른 이유) */
+  otherVehicles?: OtherVehicleProcedure[];
 }
+export interface OtherVehicleProcedure { vehicle: string; steps: number; minutes: number }
 export interface RepairJob {
   jobId: string;
   vehicleId: string;
@@ -90,6 +94,8 @@ export interface RepairTask {
   steps: ProcedureStep[];
   /** 장착 뒤 꼭 해야 할 일 (매뉴얼 기준). 결과 기록 전에 확인한다 */
   afterSteps?: string[];
+  /** 서버에 남은 고전압 확인 기록 (작업을 이어할 때 되살린다) */
+  ackedStepIds?: string[];
 }
 
 export interface KnowledgeEntry {
@@ -99,6 +105,8 @@ export interface KnowledgeEntry {
   author: string;
   body: string;
   helpful: number;
+  /** 비공개 팁은 작성자에게만 보인다 */
+  visibility?: 'PUBLIC' | 'PRIVATE';
 }
 
 export interface StepAck { taskId: string; stepId: string; ackedAt: string }
@@ -115,7 +123,8 @@ export interface CompletionRequest {
   stepLogs?: StepLog[];
 }
 export interface StepLog { stepId: string; startedAt: number; endedAt?: number; blocked: boolean; reason?: string }
-export interface CompletionResult { jobId: string; duplicated: boolean }
+/** tipEntryId: 공개 동의한 메모로 만든 팁 (막힌 단계가 있을 때만) */
+export interface CompletionResult { jobId: string; duplicated: boolean; tipEntryId?: string }
 
 export interface PartMetric {
   partId: string;
@@ -129,6 +138,19 @@ export interface PartMetric {
 }
 export interface ManufacturerMetrics { updatedAt: string; parts: PartMetric[] }
 
+/** 왼쪽 사이드바 시연 차량 */
+export interface DemoVehicle { vin: string; vehicleId: string; name: string; sub: string; ready: boolean }
+export interface UserProfile { userId: string; name: string; organization: string; career: string; badges: string[] }
+/** 차종별 자주 검색된 고장코드 */
+export interface DtcSuggestion { vehicle: string; code: string; description: string; symptom: string; searches: number }
+/** 오늘 작업 목록 한 줄. step은 끝낸 단계 수(= 멈춘 단계, 0부터) */
+export interface HistoryEntry {
+  /** 서버 작업 id. 있으면 이어하기 때 같은 작업을 다시 연다 */
+  jobId?: string;
+  vin: string; code: string; partId: string; partName: string; stepCount: number;
+  time: string; status: 'live' | 'done'; step: number; minutes?: number;
+}
+
 export interface RepairThreadApi {
   lookupVehicle(req: VehicleLookupRequest): Promise<VehicleLookup>;
   createRepairJob(req: CreateRepairJobRequest): Promise<RepairJob>;
@@ -139,4 +161,17 @@ export interface RepairThreadApi {
   ackStep(taskId: string, stepId: string): Promise<StepAck>;
   completeJob(jobId: string, req: CompletionRequest): Promise<CompletionResult>;
   getManufacturerMetrics(): Promise<ManufacturerMetrics>;
+  // 화면 보조 (구현 중 추가, api-spec 미반영)
+  getMe(): Promise<UserProfile>;
+  listVehicles(): Promise<DemoVehicle[]>;
+  getDtcSuggestions(vehicleId: string): Promise<DtcSuggestion[]>;
+  listHistory(): Promise<HistoryEntry[]>;
+  /** 이어하기: 저장된 작업을 지금 통계로 다시 연다 */
+  getRepairJob(jobId: string): Promise<RepairJob>;
+  /** 진단 취소: 오늘 작업 목록과 원인 통계에서 빠진다 */
+  cancelJob(jobId: string): Promise<CancelResult>;
+  /** 잠시 나가기·단계 이동: 지금 단계와 단계 기록을 저장해 이어하기 때 그 단계부터 연다 */
+  saveProgress(taskId: string, currentStepId: string, stepLogs: StepLog[]): Promise<ProgressResult>;
 }
+export interface CancelResult { jobId: string; status: 'CANCELLED'; cancelledAt: string }
+export interface ProgressResult { taskId: string; currentStepId: string; currentStep: number; savedSteps: number }

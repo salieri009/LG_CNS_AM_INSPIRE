@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../api/mockApi';
+import { api } from '../api';
 import type { KnowledgeEntry } from '../api/types';
 import { canLeave, repairStore, useRepair } from '../store/useRepairStore';
 import { FASTENER_LABEL } from './labels';

@@ -91,7 +91,12 @@ class RepairWorkflow {
             p.steps().forEach(s -> taskOfStep.putIfAbsent(s.stepId(), t));
         }
 
-        // 고전압 확인: 실제 원인 부품의 task(없으면 가장 최근 task)에서 확인 안 한 고전압 단계가 있으면 저장하지 않는다
+        // 고전압 절차가 있는 실제 원인은 해당 task가 있어야 한다. 다른 부품의 task로 대체할 수 없다.
+        if (cause != null && procedures.findFor(job.profileId(), cause).map(ProcedureView::requiresHv).orElse(false)
+                && tasks.stream().noneMatch(t -> t.targetPartId().equals(cause))) {
+            throw ApiException.conflict("실제 원인 부품의 작업을 시작하고 고전압 확인을 완료해 주세요.");
+        }
+        // 실제 원인 부품의 task(없으면 가장 최근 task)의 고전압 확인을 검증한다.
         TaskRow checked = tasks.stream().filter(t -> t.targetPartId().equals(cause)).findFirst()
                 .orElse(tasks.isEmpty() ? null : tasks.getFirst());
         if (checked != null) {

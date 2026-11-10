@@ -124,7 +124,7 @@ function CandidateItem({ c, on, out, onSelect }: { c: Candidate; on: boolean; ou
           {pct !== null && <div className="bar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></div>}
           <dl>
             <dt>점검 방법</dt><dd>{c.checkMethod}</dd>
-            <dt>정비사 기록</dt><dd>{c.agree}명이 이 부품을 실제 원인으로 기록</dd>
+            <dt>정비 기록</dt><dd>{c.observedRaw.count}건에서 이 부품을 실제 원인으로 확인</dd>
             {others.map(o => <Fragment key={o.vehicle}><dt>다른 차종</dt><dd>{o.vehicle}는 같은 코드에 {o.steps}단계 · 표준 {o.minutes}분 (VIN마다 절차가 다릅니다)</dd></Fragment>)}
             {p && <><dt>수리 절차</dt><dd>{p.steps}단계 · 단계별 예상 합 {p.minutes}분{p.requiresHv ? ' · 고전압 차단 포함' : ''}</dd></>}
           </dl>

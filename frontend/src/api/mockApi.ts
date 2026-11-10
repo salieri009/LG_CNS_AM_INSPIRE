@@ -1,8 +1,8 @@
 // 백엔드(Spring Boot 서비스)가 준비되기 전 쓰는 메모리 기반 목 API.
 // 같은 RepairThreadApi 인터페이스를 HTTP 구현으로 바꾸면 화면 코드는 그대로 쓴다.
-import { CASES, KNOWLEDGE, METRICS, VEHICLES, caseVehicle } from '../mocks/seed';
+import { CASES, DTC_SUGGESTIONS, HISTORY_SEED, KNOWLEDGE, MECHANIC, METRICS, VEHICLES, VEHICLE_LIST, caseFor, caseVehicle } from '../mocks/seed';
 import { MODEL3, type CaseSeed } from '../mocks/cases/types';
-import type { Candidate, KnowledgeEntry, PartMetric, RepairTask, RepairThreadApi, StepAck } from './types';
+import type { Candidate, HistoryEntry, KnowledgeEntry, PartMetric, RepairJob, RepairTask, RepairThreadApi, StepAck } from './types';
 
 /** 관측 비율을 분자·n과 함께 보여 주는 최소 표본 수 (docs/api-spec.md 원인 비율 정책) */
 export const OBSERVED_MIN_N = 30;
@@ -76,6 +76,26 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
   };
   load();
 
+  const jobView = (jobId: string, vehicleId: string, c: CaseSeed): RepairJob => {
+    const candidates: Candidate[] = [...c.candidates].sort((a, b) => a.officialOrder - b.officialOrder).map(x => {
+      const raw = { count: x.count, n: x.n };
+      const p = c.procedures.find(pr => pr.procedureId === x.procedureId);
+      // 같은 코드·같은 공식 순서의 다른 차종 절차
+      const otherVehicles = p ? cases.filter(k => k.code === c.code && caseVehicle(k) !== caseVehicle(c)).flatMap(k => {
+        const oc = k.candidates.find(o => o.officialOrder === x.officialOrder && o.procedureId);
+        const pr = oc && k.procedures.find(o => o.procedureId === oc.procedureId);
+        return pr ? [{ vehicle: caseVehicle(k).replace('Tesla ', ''), steps: pr.steps.length, minutes: pr.standardMinutes }] : [];
+      }) : [];
+      return {
+        partId: x.partId, partName: x.partName, officialOrder: x.officialOrder, checkMethod: x.checkMethod,
+        procedureId: x.procedureId ?? '', highlightNode: x.highlightNode, box: x.box ?? p?.parts?.find(pp => pp.key === x.highlightNode), chronic: x.chronic, agree: x.agree,
+        procedure: p && { steps: p.steps.length, minutes: p.steps.reduce((a, s) => a + s.minutes, 0), requiresHv: p.steps.some(s => s.requiresHvAck), heroImage: p.heroImage },
+        observedRaw: raw, observed: x.n >= OBSERVED_MIN_N ? raw : null, otherVehicles,
+      };
+    });
+    return { jobId, vehicleId, dtcCode: c.code, dtcDescription: c.description, candidates };
+  };
+
   return {
     async lookupVehicle({ vin }) {
       const v = VEHICLES[vin.trim().toUpperCase()];
@@ -83,26 +103,23 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
       return wait({ ...v });
     },
 
-    async createRepairJob({ vehicleId, dtcCodes }) {
+    async createRepairJob({ vehicleId, dtcCode }) {
       load();
-      const code = (dtcCodes[0] ?? '').trim().toUpperCase();
+      const code = (dtcCode ?? '').trim().toUpperCase();
       const vehicle = Object.values(VEHICLES).find(v => v.vehicleId === vehicleId)?.model ?? 'Tesla Model 3';
       // 같은 고장코드라도 차종마다 절차가 다르므로 차종과 코드를 함께 본다
       const c = cases.find(x => x.code === code && caseVehicle(x) === vehicle);
       if (!c) throw new Error(`이 차종에 등록되지 않은 고장코드입니다: ${code}`);
       const jobId = `job-${Date.now().toString(36)}-${++seq}`;
       jobs.set(jobId, { vehicleId, code, vehicle });
-      const candidates: Candidate[] = [...c.candidates].sort((a, b) => a.officialOrder - b.officialOrder).map(x => {
-        const raw = { count: x.count, n: x.n };
-        const p = c.procedures.find(pr => pr.procedureId === x.procedureId);
-        return {
-          partId: x.partId, partName: x.partName, officialOrder: x.officialOrder, checkMethod: x.checkMethod,
-          procedureId: x.procedureId ?? '', highlightNode: x.highlightNode, box: x.box ?? p?.parts?.find(pp => pp.key === x.highlightNode), chronic: x.chronic, agree: x.agree,
-          procedure: p && { steps: p.steps.length, minutes: p.steps.reduce((a, s) => a + s.minutes, 0), requiresHv: p.steps.some(s => s.requiresHvAck), heroImage: p.heroImage },
-          observedRaw: raw, observed: x.n >= OBSERVED_MIN_N ? raw : null,
-        };
-      });
-      return wait({ jobId, vehicleId, dtcCode: c.code, dtcDescription: c.description, candidates });
+      return wait(jobView(jobId, vehicleId, c));
+    },
+
+    async getRepairJob(jobId) {
+      load();
+      const j = jobs.get(jobId);
+      if (!j) throw new Error('없는 정비 작업입니다.');
+      return wait(jobView(jobId, j.vehicleId, caseOf(jobId)));
     },
 
     async createTask(jobId, partId) {
@@ -164,6 +181,31 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
     async getManufacturerMetrics() {
       load();
       return wait({ updatedAt: new Date().toISOString(), parts: metrics.map(m => ({ ...m })) });
+    },
+
+    async getMe() {
+      return wait({ userId: 'tech-kim', name: MECHANIC.name, organization: MECHANIC.shop, career: MECHANIC.years, badges: [...MECHANIC.badges] });
+    },
+
+    async listVehicles() {
+      return wait(VEHICLE_LIST.map(v => ({ ...v, vehicleId: VEHICLES[v.vin].vehicleId })));
+    },
+
+    async getDtcSuggestions(vehicleId) {
+      const model = Object.values(VEHICLES).find(v => v.vehicleId === vehicleId)?.model;
+      return wait(DTC_SUGGESTIONS.filter(c => c.vehicle === model).sort((a, b) => b.searches - a.searches).map(c => ({ ...c })));
+    },
+
+    /** 목 API는 작업을 저장하지 않으므로 jobId 없이 시드만 준다 (이어하기는 코드를 다시 진단해서 연다) */
+    async listHistory() {
+      return wait(HISTORY_SEED.map((h): HistoryEntry => {
+        const c = caseFor(h.vin, h.code);
+        return {
+          vin: h.vin, code: h.code, partId: h.partId, time: h.time, status: h.status, step: h.step, minutes: 'minutes' in h ? h.minutes : undefined,
+          partName: c?.candidates.find(x => x.partId === h.partId)?.partName ?? h.partId,
+          stepCount: c?.procedures.find(p => p.targetPartId === h.partId)?.steps.length ?? 0,
+        };
+      }));
     },
   };
 }

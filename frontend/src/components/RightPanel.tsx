@@ -1,12 +1,9 @@
 import { Fragment } from 'react';
 import type { Candidate } from '../api/types';
-import { CASES, DTC_SUGGESTIONS, caseFor, caseVehicle } from '../mocks/seed';
-import { canLeave, hvCleared, useRepair, type HistoryItem } from '../store/useRepairStore';
+import { canLeave, hvCleared, useRepair } from '../store/useRepairStore';
 import { FASTENER_LABEL } from './labels';
 import { RecordForm } from './RecordForm';
 
-const partName = (h: HistoryItem) => caseFor(h.vin, h.code)?.candidates.find(x => x.partId === h.partId)?.partName ?? h.partId;
-const stepCount = (h: HistoryItem) => caseFor(h.vin, h.code)?.procedures.find(p => p.targetPartId === h.partId)?.steps.length ?? 0;
 
 /** 오른쪽 패널: 지금 차량의 진단 흐름 (기록 → 고장코드 → 원인 후보 → 진행 단계 → 결과 기록) */
 export function RightPanel() {
@@ -67,14 +64,14 @@ export function RightPanel() {
 
 /** 대기 화면: 차량을 고르기 전에도 오늘 작업이 보이고, 차량을 고르면 자주 검색된 고장코드를 바로 누를 수 있다 */
 function Idle() {
-  const { vehicle, history, resume, pickCode } = useRepair(st => st);
+  const { vehicle, history, resume, pickCode, suggestions } = useRepair(st => st);
   return (
     <>
       {vehicle && (
         <>
           <p className="label">이 차종에서 자주 검색된 고장코드</p>
           <ul className="codes">
-            {DTC_SUGGESTIONS.filter(c => c.vehicle === vehicle.model).sort((a, b) => b.searches - a.searches).map(c => (
+            {suggestions.map(c => (
               <li key={c.code}>
                 <button onClick={() => void pickCode(c.code)}>
                   <b>{c.code}</b><span>{c.description.replace(' (예시 코드)', '')}</span><small>{c.symptom}</small><em>{c.searches}회</em>
@@ -89,8 +86,8 @@ function Idle() {
         {history.map(h => (
           <li key={h.id}>
             <div>
-              <p><b>{h.code}</b> {partName(h)}</p>
-              <small>{h.time} 시작 · {h.status === 'live' ? `${h.step + 1}/${stepCount(h)}단계에서 멈춤` : `${h.minutes}분 걸림`}</small>
+              <p><b>{h.code}</b> {h.partName}</p>
+              <small>{h.time} 시작 · {h.status === 'live' ? `${h.step + 1}/${h.stepCount}단계에서 멈춤` : `${h.minutes}분 걸림`}</small>
             </div>
             <span className={`state ${h.status}`}>{h.status === 'live' ? '진행 중' : '완료'}</span>
             <button className="pill" onClick={() => void resume(h.id)}>{h.status === 'live' ? '이어서' : '다시 보기'}</button>
@@ -104,13 +101,9 @@ function Idle() {
 
 /** 원인 후보 한 줄. 펼치면 근거(고질 문제·정비사 기록·관측 비율)와 수리 절차 요약이 나온다 */
 function CandidateItem({ c, on, out, onSelect }: { c: Candidate; on: boolean; out: boolean; onSelect: () => void }) {
-  const { startRepair, resume, history, job, vehicle, vin, ruleOut } = useRepair(st => st);
+  const { startRepair, resume, history, job, vin, ruleOut } = useRepair(st => st);
   // 같은 고장코드가 다른 차종에서는 절차가 어떻게 다른지 (VIN별 안내가 필요한 이유)
-  const others = c.procedure ? CASES.filter(k => k.code === job?.dtcCode && caseVehicle(k) !== vehicle?.model).flatMap(k => {
-    const oc = k.candidates.find(x => x.officialOrder === c.officialOrder && x.procedureId);
-    const pr = oc && k.procedures.find(x => x.procedureId === oc.procedureId);
-    return pr ? [{ vehicle: caseVehicle(k).replace('Tesla ', ''), steps: pr.steps.length, minutes: pr.standardMinutes }] : [];
-  }) : [];
+  const others = c.otherVehicles ?? [];
   const live = history.find(h => h.status === 'live' && h.vin === vin && h.code === job?.dtcCode && h.partId === c.partId);
   const p = c.procedure;
   const pct = c.observed ? Math.round((c.observed.count / c.observed.n) * 100) : null;

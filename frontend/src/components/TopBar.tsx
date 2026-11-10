@@ -1,7 +1,6 @@
 import { useState, type KeyboardEvent } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useRepair } from '../store/useRepairStore';
-import { DTC_SUGGESTIONS } from '../mocks/seed';
 
 const PanelIcon = ({ side }: { side: 'left' | 'right' }) => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -11,11 +10,11 @@ const PanelIcon = ({ side }: { side: 'left' | 'right' }) => (
 
 /** 상단바: 패널 토글, 탭, 고장코드 검색(돋보기를 누르면 옆으로 펼쳐짐) */
 export function TopBar({ showMechanicTools = true }: { showMechanicTools?: boolean }) {
-  const { panels, togglePanel, vehicle, pickCode } = useRepair(s => s);
+  const { panels, togglePanel, vehicle, pickCode, suggestions } = useRepair(s => s);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [active, setActive] = useState(0);
-  const matches = DTC_SUGGESTIONS.filter(c => c.vehicle === vehicle?.model).filter(c => !q || c.code.toLowerCase().includes(q.toLowerCase()) || c.description.includes(q) || c.symptom.includes(q));
+  const matches = suggestions.filter(c => !q || c.code.toLowerCase().includes(q.toLowerCase()) || c.description.includes(q) || c.symptom.includes(q));
   const choose = (code: string) => { setOpen(false); setQ(''); setActive(0); void pickCode(code); };
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(i => Math.min(matches.length - 1, i + 1)); }

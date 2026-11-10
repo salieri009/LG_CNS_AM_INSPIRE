@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+// 공장 지표 API(7)는 백엔드에 아직 없어서, 이 화면은 HTTP 모드에서도 브라우저 안의 목 API로 보여 준다.
+// 그래서 HTTP 모드에서는 정비사 화면의 기록이 이 화면 지표에 반영되지 않는다. API 7을 구현하면 '../api'로 바꾼다
 import { api, onMockChange } from '../api/mockApi';
 import type { ManufacturerMetrics } from '../api/types';
 import { TopBar } from '../components/TopBar';

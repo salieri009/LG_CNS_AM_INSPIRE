@@ -3,7 +3,7 @@ import { createMockApi } from '../api/mockApi';
 import { createRepairStore, recordDraft } from './useRepairStore';
 
 let store: ReturnType<typeof createRepairStore>;
-beforeEach(() => { store = createRepairStore(createMockApi({ delayMs: 0 })); });
+beforeEach(async () => { store = createRepairStore(createMockApi({ delayMs: 0 })); await store.getState().init(); });
 
 describe('repair store', () => {
   it('VIN 조회 뒤 고장코드를 고르면 원인 후보 화면이 되고 오른쪽 패널이 열린다', async () => {

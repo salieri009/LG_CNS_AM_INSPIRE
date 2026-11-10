@@ -102,18 +102,18 @@ class RecordStore {
         return now.toInstant();
     }
 
-    void saveStepLog(String taskId, String stepId, Instant startedAt, Instant endedAt, boolean blocked, String note) {
+    void saveStepLog(String taskId, String stepId, Instant startedAt, Instant endedAt, boolean blocked, String note, Long elapsedMs) {
         Timestamp s = startedAt == null ? null : Timestamp.from(startedAt);
         Timestamp e = endedAt == null ? null : Timestamp.from(endedAt);
         int updated = jdbc.sql("""
-                UPDATE record.step_record SET started_at = ?, ended_at = ?, blocked = ?, difficulty_note = ?
+                UPDATE record.step_record SET started_at = ?, ended_at = ?, blocked = ?, difficulty_note = ?, elapsed_ms = ?
                 WHERE task_id = ? AND step_id = ?
-                """).params(s, e, blocked, note, taskId, stepId).update();
+                """).params(s, e, blocked, note, elapsedMs, taskId, stepId).update();
         if (updated == 0) {
             jdbc.sql("""
-                    INSERT INTO record.step_record (task_id, step_id, started_at, ended_at, blocked, difficulty_note)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """).params(taskId, stepId, s, e, blocked, note).update();
+                    INSERT INTO record.step_record (task_id, step_id, started_at, ended_at, blocked, difficulty_note, elapsed_ms)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """).params(taskId, stepId, s, e, blocked, note, elapsedMs).update();
         }
     }
 

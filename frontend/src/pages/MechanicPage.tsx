@@ -10,9 +10,9 @@ import { modelFor } from '../viewer/config';
 
 /** 정비사 화면 (A①~A③): 가운데 3D가 화면 전체, 왼쪽 정비사·차량, 오른쪽 진단, 아래 매뉴얼 */
 export function MechanicPage() {
-  const { panels, mode, task, step, job, selected, goTo, vehicle, init } = useRepair(s => s);
+  const { panels, mode, task, step, job, selected, goTo, vehicle, init, pauseTiming, resumeTiming } = useRepair(s => s);
   // 정비사 프로필·차량 목록·오늘 작업은 화면을 열 때 API에서 받는다
-  useEffect(() => { void init(); }, [init]);
+  useEffect(() => { void init(); resumeTiming(); return pauseTiming; }, [init, pauseTiming, resumeTiming]);
   const candidate = mode === 'cands' ? job?.candidates[selected] : undefined;
   // 매뉴얼 창 높이는 사람마다 다르게 쓰므로 이 브라우저에만 기억해 둔다
   const [manualH, setManualH] = useState(() => {

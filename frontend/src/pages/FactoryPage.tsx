@@ -104,11 +104,11 @@ export function FactoryPage() {
                     <div className="cand-x">
                       <dl>
                         <dt>모듈째 교체</dt><dd>{Math.round(p.moduleReplaceRate * 100)}%</dd>
-                        <dt>가장 막힘</dt><dd>{p.topStuckStep}</dd>
+                        <dt>가장 막힘</dt><dd>{p.topStuckStep}{p.stuckSampleN !== undefined && <small> · 새 막힘 기록 {p.stuckSampleN}건 기준</small>}</dd>
                         <dt>사양</dt><dd>{p.profile}</dd>
                       </dl>
                       <p className="insight-line">
-                        표준보다 평균 {p.avgMinutes - p.standardMinutes}분 더 걸리고, 정비사들이 가장 오래 막힌 곳은 "{p.topStuckStep}"입니다.
+                        표준보다 평균 {p.avgMinutes - p.standardMinutes}분 더 걸리고, 막힘이 가장 많이 기록된 곳은 "{p.topStuckStep}"입니다.
                         {p.moduleReplaceRate > 0.5 ? ` 수리의 ${Math.round(p.moduleReplaceRate * 100)}%가 모듈째 교체로 끝나 낱개 부품 공급이나 체결 방식 검토가 필요해 보입니다.` : ' 분해 순서나 공구 접근성부터 살펴볼 만합니다.'}
                       </p>
                     </div>

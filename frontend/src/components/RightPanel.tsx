@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 import type { Candidate } from '../api/types';
 import { canLeave, hvCleared, useRepair } from '../store/useRepairStore';
 import { FASTENER_LABEL } from './labels';
+import { stepElapsed } from '../store/stepTiming';
 import { RecordForm } from './RecordForm';
 
 
@@ -43,7 +44,7 @@ export function RightPanel() {
                 return (
                   <li key={st.stepId} className={`${i < s.step ? 'done' : i === s.step ? 'cur' : ''} ${st.requiresHvAck ? 'hv' : ''}`}>
                     <button onClick={() => s.goTo(i)} disabled={locked}>
-                      <span className="ic">{i < s.step ? '✓' : i + 1}</span><span className="t">{st.title}</span><span className="m">{s.stepLog[st.stepId]?.blocked ? '막힘 · ' : ''}{FASTENER_LABEL[st.fastenerType]} · {i < s.step && s.stepLog[st.stepId]?.endedAt ? `실제 ${Math.max(1, Math.round((s.stepLog[st.stepId].endedAt! - s.stepLog[st.stepId].startedAt) / 60_000))}분` : `${st.minutes}분`}{st.requiresHvAck ? (s.acked[st.stepId] ? ' · 0V 확인' : ' · 고전압') : ''}</span>
+                      <span className="ic">{i < s.step ? '✓' : i + 1}</span><span className="t">{st.title}</span><span className="m">{s.stepLog[st.stepId]?.blocked ? '막힘 · ' : ''}{FASTENER_LABEL[st.fastenerType]} · {i < s.step && s.stepLog[st.stepId]?.endedAt ? `실제 ${Math.max(1, Math.round(stepElapsed(s.stepLog[st.stepId], s.stepLog[st.stepId].endedAt!) / 60_000))}분` : `${st.minutes}분`}{st.requiresHvAck ? (s.acked[st.stepId] ? ' · 0V 확인' : ' · 고전압') : ''}</span>
                     </button>
                   </li>
                 );

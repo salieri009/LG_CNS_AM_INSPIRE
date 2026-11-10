@@ -1,22 +1,26 @@
 <div align="center">
 
-# 카닥
+<img src="docs/images/banner.png" alt="카닥 (CarDoc): 차량 고장코드 기반 3D 정비 지원 서비스. 고장코드 → 점검 순서 → 3D 분해 → 결과 기록 → 공장 지표" width="100%">
 
-차량 고장코드 기반 3D 정비 지원 서비스
+<br>
 
-LG CNS AM INSPIRE CAMP 6기 해커톤 · 5팀 팩토리 · 2026-11-09 ~ 11-10
+![Hackathon](https://img.shields.io/badge/LG%20CNS%20AM%20INSPIRE-6%EA%B8%B0%20%ED%95%B4%EC%BB%A4%ED%86%A4-A50034?style=for-the-badge)
+![Team](https://img.shields.io/badge/5%ED%8C%80-%ED%8C%A9%ED%86%A0%EB%A6%AC-1e293b?style=for-the-badge)
+![Date](https://img.shields.io/badge/2026--11--09~10-0f172a?style=for-the-badge)
 
-![Hackathon](https://img.shields.io/badge/LG%20CNS%20AM%20INSPIRE-6%EA%B8%B0%20%ED%95%B4%EC%BB%A4%ED%86%A4-A50034)
-![Domain](https://img.shields.io/badge/Domain-Factory-1e293b)
-![Frontend](https://img.shields.io/badge/React%2019-Three.js-61DAFB?logo=react&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-69%20passed-16a34a?logo=vitest&logoColor=white)
-![Architecture](https://img.shields.io/badge/Architecture-MSA-2563eb)
-![Kubernetes](https://img.shields.io/badge/Amazon%20EKS-Auto%20Mode-326CE5?logo=kubernetes&logoColor=white)
+![React](https://img.shields.io/badge/React%2019-20232A?logo=react&logoColor=61DAFB)
+![Three.js](https://img.shields.io/badge/react--three--fiber-000000?logo=threedotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot%204-PR%20%2318-6DB33F?logo=springboot&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL%208.4-4479A1?logo=mysql&logoColor=white)
+![EKS](https://img.shields.io/badge/Amazon%20EKS-%EB%AA%A9%ED%91%9C%20%EA%B5%AC%EC%84%B1-326CE5?logo=kubernetes&logoColor=white)
+![Tests](https://img.shields.io/badge/Vitest-86%20passed-16a34a?logo=vitest&logoColor=white)
 ![No AI](https://img.shields.io/badge/AI%C2%B7LLM-%EC%97%86%EC%9D%8C%20(%EA%B7%9C%EC%B9%99%20%EA%B8%B0%EB%B0%98)-64748b)
 
 *공장은 조립하기 쉬운 차를 만들지만, 그 차가 얼마나 고치기 어려운지는 모른다.*
 
-[빠른 시작](#빠른-시작) · [데모 시나리오](#3-데모-시나리오) · [기획서](docs/planning.md) · [테스트 기획](docs/test-plan.md)
+[화면](#화면) · [빠른 시작](#빠른-시작) · [데모 시나리오](#3-데모-시나리오) · [기획서](docs/planning.md) · [시연 대본](docs/demo-script.md) · [테스트 기획](docs/test-plan.md)
 
 </div>
 
@@ -26,9 +30,11 @@ LG CNS AM INSPIRE CAMP 6기 해커톤 · 5팀 팩토리 · 2026-11-09 ~ 11-10
 ## 목차
 
 - [한눈에 보기](#한눈에-보기)
+- [화면](#화면)
 - [빠른 시작](#빠른-시작)
 - [1. Problem & Target](#1-problem--target)
 - [2. Solution & Experience](#2-solution--experience)
+  - [비슷한 서비스와 다른 점](#비슷한-서비스와-다른-점)
 - [3. 데모 시나리오](#3-데모-시나리오)
 - [4. 구현 현황: 실제 구현 · Mock · 설계만](#4-구현-현황-실제-구현--mock--설계만)
 - [5. Technical Design](#5-technical-design)
@@ -51,6 +57,27 @@ LG CNS AM INSPIRE CAMP 6기 해커톤 · 5팀 팩토리 · 2026-11-09 ~ 11-10
 | 핵심 장면 | 결과 기록을 한 건 제출하면 정비사 화면의 관측 비율과 공장 화면의 지표가 같이 바뀜 |
 | 시연 차량 | Tesla Model 3, Model X (공개 서비스 매뉴얼 기준 절차, 숫자는 예시 데이터) |
 
+## 화면
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/screen-diagnosis.jpg" alt="정비사 화면: Model 3, 고장코드 B1A24 입력 뒤 증상 칩과 원인 후보. 1순위 리어 도어 래치 관측 25/48건(52%), 점검 방법 체크리스트"></td>
+    <td width="50%"><img src="docs/images/screen-factory.jpg" alt="공장·설계 화면: 정비하기 어려운 부품 순위. 1위 헤드램프 어셈블리(LH) 표준 대비 +78%, 모듈째 교체 83%, 가장 막힌 단계"></td>
+  </tr>
+  <tr>
+    <td align="center">A①·A② 고장코드·증상 접수 → 공식 순서 + 관측 원인 비율</td>
+    <td align="center">B① 정비 난이도 · B② 사양·생산 비교 · B③ 고장 다발</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/images/screen-repair.jpg" alt="3D 분해 경로: 리어 도어 래치 7단계 중 1단계 도어 트림 패널을 3D 위에 빨갛게 강조하고, 오른쪽에 단계별 체결 방식과 예상 시간"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">A③ 3D 분해 경로: 고른 부품까지 7단계, 단계마다 체결 방식·예상 시간, 단계 시간 자동 측정</td>
+  </tr>
+</table>
+
+로컬 목 API로 띄운 실제 화면 (숫자는 예시 데이터). 매뉴얼 그림 영역은 공개 범위 결정(D24) 전이라 캡처에서 뺐음.
+
 ## 빠른 시작
 
 백엔드 없이 프론트엔드와 목 API만으로 돌아감. Node.js 24 LTS 기준.
@@ -68,9 +95,10 @@ npm run dev -- --port 5180 --strictPort
 | 공장·설계 | http://localhost:5180/factory |
 
 ```sh
-npm test        # Vitest
-npm run lint    # oxlint
-npm run build   # tsc -b + vite build
+npm test                # Vitest
+npm run lint            # oxlint
+npm run build           # tsc -b + vite build
+npm run build:public    # 매뉴얼 그림을 뺀 공개 배포판 (Vercel)
 ```
 
 - 목 상태는 브라우저 `localStorage`에 남아 같은 브라우저의 창끼리 공유됨. 초기화: `localStorage.removeItem('repair-thread-mock-v1')`
@@ -101,7 +129,7 @@ npm run build   # tsc -b + vite build
 
 - 진단 피드백 (왼쪽): 기록이 쌓일수록 다음 정비사가 보는 관측 원인 비율이 정확해짐
 - 제조 피드백 (오른쪽): 같은 기록이 공장 지표가 되어 개선 검토의 근거가 되고, 다음 생산 차수로 이어짐
-- 실선은 지금 목 API로 동작하는 부분, 점선(익명화, B②·B③ 사양 비교·고장 다발, B④ 개선 검토)은 설계만 한 부분
+- 실선은 지금 목 API로 동작하는 부분 (B②·B③은 PR #25에서 구현), 점선(익명화, B④ 개선 검토)은 설계만 한 부분
 
 ### 핵심 기능 3개
 
@@ -118,17 +146,28 @@ npm run build   # tsc -b + vite build
 
 | # | 기능 | 내용 | 지금 |
 | --- | --- | --- | --- |
-| A① | 차량·고장코드 입력 | VIN → 차종·사양·생산 시기 표시, 차종별 자주 검색된 고장코드 | 구현 (목 API) |
-| A② | 점검 우선순위 | 공식 진단 순서 + 관측 원인 비율, 순서대로 지우기 | 구현 (목 API) |
+| A① | 차량·고장코드 입력 | VIN → 차종·사양·생산 시기 표시, 차종별 자주 검색된 고장코드, 코드 여러 개와 접수 증상 칩 | 구현 (목 API) |
+| A② | 점검 우선순위 | 공식 진단 순서 + 관측 원인 비율, 코드 여러 개면 공통 원인 먼저, 후보별 점검 방법 체크 뒤 지우기 | 구현 (목 API) |
 | A③ | 3D 분해 경로 | 단계 재생, 체결 방식, 고전압 잠금, 매뉴얼 그림, 단계 기록·팁 | 구현 (목 API) |
 | A④ | 정비 결과 기록 | 원인 부품·미확인, 시간, 막힌 단계, 모듈 교체, 장착 뒤 할 일 확인 | 구현 (목 API) |
 | A⑤ | 신입 모드 | 단계별 체크리스트 | 발표에서만 |
 | B① | 정비 난이도 지표 | 부품별 평균 시간, 표준 대비 초과율, 모듈 교체 비율, 3D 위 난이도 밝기 | 구현 (목 API) |
-| B② | 사양·생산 조건 비교 | 같은 부품의 사양·시기·라인별 시간 차이 | 미구현 |
-| B③ | 고장 다발 분석 | 고장코드별 실제 원인 분포, 집중 탐지 | 미구현 |
+| B② | 사양·생산 조건 비교 | 같은 부품의 사양·시기·라인별 시간 차이 | 구현 (목 API, PR #25) |
+| B③ | 고장 다발 분석 | 고장코드별 실제 원인 분포, 집중 탐지 | 구현 (목 API, PR #25) |
 | B④ | 개선 검토 근거 | 체결 방식·조립 순서 변경 검토 제안 | 발표에서만 |
 
 </details>
+
+### 비슷한 서비스와 다른 점
+
+기능 하나씩은 이미 있는 제품이 많음. 카닥은 이것들을 정비사 화면 하나와 공장 지표 하나로 이어 붙인 것이 다름.
+
+| 분류 | 예 | 하는 일 | 카닥과 다른 점 |
+| --- | --- | --- | --- |
+| 확정 수리 DB | [Identifix Direct-Hit](https://www.identifix.com/confirmed-fixes/), Snap-on SureTrack | 검증된 실제 수리 사례 300만 건 이상으로 가장 가능성 높은 수리법 제시 | 3D 분해 안내가 없고, 결과가 제조사로 돌아가지 않음 |
+| 3D·AR 정비 안내 | [Bosch AR service co-pilot](https://www.bosch-softwaretechnologies.com/media/documents/downloads/2024/XR_Copilot_for_Automotive_Aftermarket.pdf), [Porsche Tech Live Look](https://newsroom.porsche.com/en_US/technology/porsche-tech-live-look-augmented-reality-usage-covid-19-20702.html), PTC Vuforia | 3D 분해도·단계별 안내, AR 겹쳐 보기, 원격 전문가 연결 | 고장코드별 관측 원인 비율과 정비사 팁이 없음 |
+| 국내 사례 | [HD현대인프라코어 AR 가이던스](https://ceoscoredaily.com/page/view/2023071214345521206) | 건설기계 고장코드별 진단 정보 + 3D 부품 위치 | 건설장비용, 원인 통계·공장 피드백 없음 |
+| 서비스 → 설계 피드백 | PTC ServiceMax 디지털 스레드 | 정비 현장 데이터를 설계·생산으로 돌려보내는 플랫폼 | 정비사가 작업 중에 쓰는 화면이 없음 |
 
 ## 3. 데모 시나리오
 
@@ -211,7 +250,7 @@ flowchart TB
 
 | 항목 | 규모 | 문서 |
 | --- | --- | --- |
-| API | 8개 (`/api/v1/vehicle-lookups` ~ `/api/v1/manufacturer/metrics`, 단계 팁 남기기) | [api-spec.md](docs/api-spec.md) |
+| API | 15개: 기획 8개 (`/api/v1/vehicle-lookups` ~ `/api/v1/manufacturer/metrics`, 단계 팁 남기기) + 구현에서 추가 7개 (이어하기·취소·진행 저장 등, PR #18) | [api-spec.md](docs/api-spec.md) |
 | 데이터 | 테이블 15개, 서비스별 소유 | [data-dictionary.md](docs/data-dictionary.md) |
 
 ### 프로젝트 구조
@@ -235,7 +274,7 @@ flowchart TB
 
 | 항목 | 현황 |
 | --- | --- |
-| 자동 테스트 | 86개 통과 (Vitest, 파일 11개), lint·build 통과 (master, PR #25 머지 뒤). 백엔드 PR(#18·#22·#23)은 H2 통합 14개 + 모듈 경계 1개 |
+| 자동 테스트 | 86개 통과 (Vitest, 파일 11개), lint·build 통과 (master, PR #25 머지 뒤). 리뷰 중인 PR #27은 회귀 11개를 더해 97개. 백엔드 PR(#18·#22·#23)은 H2 통합 14개 + 모듈 경계 1개 |
 | 테스트케이스 | 72개, 시연 전 필수 P0 17개 중 12개 통과 |
 | 브라우저 확인 | 정비사 창에서 기록 → 공장 창 지표가 새로고침 없이 갱신 (n 41 → 42) |
 
@@ -243,7 +282,7 @@ flowchart TB
 
 ## 7. Key Decisions
 
-해커톤 가이드의 "처음 생각 → 확인한 내용 → 바뀐 판단" 형식. 전체 24개는 [기획서 9장](docs/planning.md#9-의사결정-로그)에 있음.
+해커톤 가이드의 "처음 생각 → 확인한 내용 → 바뀐 판단" 형식. 전체 26개는 [기획서 9장](docs/planning.md#9-의사결정-로그)에 있음.
 
 | # | 처음 생각 | 확인한 내용 | 바뀐 판단 |
 | --- | --- | --- | --- |
@@ -252,6 +291,8 @@ flowchart TB
 | D20 | 원인 후보를 고장 다발 확률 순으로 정렬 | 관측 비율은 고장 발생률이 아님. 공식 진단 순서가 우선 | 공식 순서 기본, 관측 비율·n은 근거로 표시 |
 | D23 | 서비스 11개를 모두 구현하고 탄력 구조까지 시연 | 핵심 기능 1~3개, 실제 구현·Mock 구분 기준. 남은 시간 약 하루 | 데모 루프만 실제 구현, 나머지는 Mock |
 | D24 | 가상 차량 PBV-X 1종 | 공개 서비스 매뉴얼로 실제 절차를 확보함. 그림·3D 모델 재배포 허락은 미확인 | Tesla Model 3·X로 시연, 숫자는 예시. 출처 처리는 팀 결정 대기 |
+| D25 | 서비스 7개를 MSA로 실제 구현 | 남은 시간에 서비스 7개를 따로 띄우고 서로 호출하게 만들기 어려움. Spring Modulith로 모듈 경계를 테스트로 강제 가능 | 백엔드는 Spring Boot 4 모듈러 모놀리스 1개 (PR #18). MSA·EKS는 목표 설계로 유지. 팀 확인 필요 |
+| D26 | 가칭 리페어 스레드 | 이름만 듣고 자동차 정비 서비스인 게 보여야 함 | 카닥(CarDoc). 화면 로고와 `CarDocApi`는 PR #25에서 바꿈 |
 
 ## 8. 진행 상태와 다음 단계
 
@@ -260,23 +301,29 @@ flowchart TB
 - [x] 해커톤 가이드 기준 리뷰와 반영 ([리뷰](docs/review-mentor-guide.md))
 - [x] 프론트엔드: 정비사·공장 화면, 3D 뷰어, 목 API (PR #2·#6~#9 머지)
 - [x] 3D 모델 출처 등록 (Sketchfab, CC BY 4.0)
+- [x] 후보 점검·코드 여러 개·증상 접수, 공장 B②·B③, 공개 배포판 (PR #25 머지)
+- [ ] 리뷰 중: 백엔드 #18, 진행 복원 #22·#23, 카메라 #21, 연속 입력·통계 일치 #27, 시연 영상 도구 #26·#28, 문서 #20·#24
+- [ ] 백엔드 고장코드 하나 vs 화면 여러 개 맞추기 (D25, 팀 결정)
 - [ ] 매뉴얼 그림 공개 범위 (D24, 팀 결정)
 - [ ] 남은 P0 테스트, 데모 전 측정 ([기획서 10장](docs/planning.md#10-기대효과와-지표))
-- [ ] 리허설 3회 연속 통과
+- [ ] 리허설 3회 연속 통과 ([시연 대본](docs/demo-script.md))
 
-다음 단계 (해커톤 이후): Spring Boot 백엔드, 실제 정비사 검증, 제조사 데이터 제휴, 진단기 연동
+다음 단계 (해커톤 이후): 백엔드 머지와 API 7 구현, 실제 정비사 검증, 제조사 데이터 제휴, 진단기 연동
 
 ## 9. 문서
 
 | 문서 | 내용 |
 | --- | --- |
 | [기획서](docs/planning.md) | 문제 정의부터 발표 구성까지 15장 |
-| [API 명세](docs/api-spec.md) | API 8개와 권한·안전·집계 정책 |
+| [API 명세](docs/api-spec.md) | API 15개 (기획 8 + 구현 추가 7)와 권한·안전·집계 정책 |
 | [데이터 사전](docs/data-dictionary.md) | 테이블 15개, 소유 서비스·저장소 |
 | [테스트케이스 기획](docs/test-plan.md) | 72개 (P0 17개), 상태와 근거, 리허설 순서 |
 | [EKS 배포 기획](docs/deployment-eks.md) | 서비스 분리, 탄력 설계, 매니페스트 예시, CI/CD, 비용·리스크 |
 | [가이드 기준 리뷰](docs/review-mentor-guide.md) | 8항목 판정, 체크리스트, 범위 칼질, 발표·Q&A |
 | [로컬 실행 안내](docs/local-preview.md) | 설치·실행, 확인할 흐름, 검증 |
+| [시연 대본](docs/demo-script.md) | 발표 시연 순서와 대사 |
+| [Vercel 배포 안내](docs/deploy-vercel.md) | 공개 배포판 빌드, 주소, 동시 접속 기준 |
+| [목업 API 차이](docs/frontend-mock-api-diff.md) | 화면 목 API와 백엔드 API의 차이 |
 | [그림 원본](docs/images/src) | 구성도 스펙(JSON), 루프 다이어그램(Excalidraw) |
 
 ## 10. 출처와 라이선스

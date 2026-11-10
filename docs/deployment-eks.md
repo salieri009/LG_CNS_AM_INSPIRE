@@ -4,6 +4,8 @@
 
 서비스를 Deployment 11개로 나눠 서울 리전(ap-northeast-2) EKS Auto Mode 클러스터 하나에서 관리하고, 파드·노드·DB가 사용량에 따라 늘고 줄게 함 (14-3). 사용자 진입은 CloudFront 하나, 3D 모델은 S3, DB는 Aurora Serverless v2에 서비스별 스키마. 사양과 숫자는 해커톤 시연 기준 제안임. 프론트는 React 19 + Vite(정적 파일), 백엔드는 지금 MySQL 8.4로 개발 중이라(PR #18, D25) Aurora도 MySQL 호환을 기본으로 둠 (팀 확인 필요).
 
+> 공개 시연판: EKS와 별개로 프론트만 Vercel 정적 사이트로 올림 (`npm run build:public`, Tesla 매뉴얼 그림 제외, 백엔드 없이 목 API). 주소는 `https://jnnxeo-cardoc.vercel.app`(master 연결 뒤), 팀원 40명이 20분 함께 써도 Hobby 한도(월 100GB) 안. 자세한 건 [deploy-vercel.md](./deploy-vercel.md) (PR #25).
+
 ## 14-1. 서비스 분리 (D22)
 
 > D25: 지금 백엔드는 모듈러 모놀리스 1개(PR #18)라, 아래 표는 모듈을 서비스로 떼어 낼 때의 목표 배포 단위임. 시연 배포를 백엔드 1개 + 웹으로 줄일지는 팀 확인 필요.

@@ -150,13 +150,14 @@ Tesla Model 3, 고장코드 B1A24 (리어 왼쪽 도어 래치, 예시 코드). 
 
 | 구분 | 내용 |
 | --- | --- |
-| 실제 구현 | 프론트엔드 정비사·공장 화면, 3D 뷰어 (React 19 + react-three-fiber), 상태 관리 (zustand) |
-| Mock | 백엔드 서비스 전체를 같은 인터페이스(`RepairThreadApi`)의 목 API로 대체. 시드 사례 8개, 차량 2대, 단계 팁 12건. 상태는 브라우저 `localStorage` |
-| 설계만 | Spring Boot 마이크로서비스, EKS 배포, 신입 모드, 개선 제안, 팁 추천·신고, 실제 제조사 연동 |
+| 실제 구현 | 프론트엔드 정비사 화면(후보 점검, 고장코드 여러 개, 증상 칩), 공장 화면(B① 정비 난이도·B② 사양·생산 비교·B③ 고장 다발), 3D 뷰어 (React 19 + react-three-fiber), 상태 관리 (zustand) |
+| 백엔드 (PR #18, 머지 전) | Spring Boot 모듈러 모놀리스 1개, 정비사 화면 API 1\~6·8·9\~15 (D25). `VITE_API_MODE=http`로 연결 |
+| Mock | 목 API(`CarDocApi` 목 구현)가 백엔드 전체를 대신함. 시드 사례, 차량 2대, 단계 팁 12건. 상태는 브라우저 `localStorage` |
+| 설계만 | EKS 배포(목표 구성 11 Deployment), 신입 모드, 개선 제안(B④), 팁 추천·신고, 실제 제조사 연동 |
 
-![현재 시연 구성: 정비사 창과 공장 창이 useRepairStore와 RepairThreadApi를 거쳐 브라우저 안 목 API를 쓰고, localStorage와 BroadcastChannel로 창끼리 새로고침 없이 갱신됨](docs/images/demo-runtime.png)
+![현재 시연 구성: 정비사 창과 공장 창이 useRepairStore와 CarDocApi를 거쳐 브라우저 안 목 API를 쓰고, localStorage와 BroadcastChannel로 창끼리 새로고침 없이 갱신됨](docs/images/demo-runtime.png)
 
-화면 코드는 `RepairThreadApi` 인터페이스에만 의존함. 지금은 목 구현이 붙어 있고, 백엔드가 생기면 같은 인터페이스의 HTTP 구현으로 바꿈.
+화면 코드는 `CarDocApi` 인터페이스에만 의존함. 기본은 목 구현이고, PR #18의 HTTP 구현(`VITE_API_MODE=http`)으로 백엔드에 붙음. 공개 시연판은 프론트만 Vercel 정적 사이트로 올림 ([배포 안내](docs/deploy-vercel.md)).
 
 ## 5. Technical Design
 
@@ -166,10 +167,11 @@ Tesla Model 3, 고장코드 B1A24 (리어 왼쪽 도어 래치, 예시 코드). 
 
 - 논리 서비스 7개: 진단, 3D 가이드, 정비 기록, 분석, 생산 연동에 auth와 knowledge를 나눔 (D22). 배포 단위는 웹앱 2개·Gateway·제조사 mock까지 11개
 - 회색 글자(auth, knowledge, 생산 연동, 제조사 시스템)는 시연에서 고정 응답 Mock (D23)
-- 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음. 저장소는 Aurora 클러스터 1개에 스키마 5개 + S3
-- 진단·분석은 자체 DB 없이 다른 서비스를 호출함 (분석은 정비 DB 집계 조회)
+- 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음. 저장소는 Aurora 클러스터 1개에 스키마 6개 + S3
+- 진단은 고장코드 규칙 참조 데이터만 두고 이력은 호출함, 분석은 정비 기록 집계 조회로 계산
+- 지금 백엔드 구현은 모듈러 모놀리스 1개 (D25, PR #18). 위 그림은 목표 구성
 - Spring Boot 계층: Controller → Application Service → Domain Service → Repository / External API Client
-- 프론트는 화면 코드가 `RepairThreadApi` 인터페이스에만 의존해서, 목 API를 HTTP 구현으로 바꾸면 백엔드에 그대로 붙음
+- 프론트는 화면 코드가 `CarDocApi` 인터페이스에만 의존해서, 목 API를 HTTP 구현으로 바꾸면 백엔드에 그대로 붙음
 
 <details>
 <summary>텍스트 버전 (Mermaid)</summary>
@@ -220,7 +222,7 @@ flowchart TB
 │   ├── public/models/     3D 모델 (GLB)
 │   ├── public/manual/     매뉴얼 그림 (출처는 10장)
 │   └── src/
-│       ├── api/           RepairThreadApi 인터페이스와 목 API
+│       ├── api/           CarDocApi 인터페이스와 목 API
 │       ├── mocks/         차종·고장코드별 시드 사례
 │       ├── store/         진단 흐름 상태 (zustand)
 │       ├── pages/         정비사 화면, 공장 화면
@@ -233,8 +235,8 @@ flowchart TB
 
 | 항목 | 현황 |
 | --- | --- |
-| 자동 테스트 | 69개 통과 (Vitest, 파일 11개), lint·build 통과 (master 기준). 최신 PR #21·#22·#23까지 합치면 93개 (백엔드 PR은 H2 통합 14개 + 모듈 경계 1개) |
-| 테스트케이스 | 69개, 시연 전 필수 P0 17개 중 12개 통과 |
+| 자동 테스트 | 86개 통과 (Vitest, 파일 11개), lint·build 통과 (master, PR #25 머지 뒤). 백엔드 PR(#18·#22·#23)은 H2 통합 14개 + 모듈 경계 1개 |
+| 테스트케이스 | 72개, 시연 전 필수 P0 17개 중 12개 통과 |
 | 브라우저 확인 | 정비사 창에서 기록 → 공장 창 지표가 새로고침 없이 갱신 (n 41 → 42) |
 
 남은 P0: 관측 비율 경계(사례 n 29/30), 출처 표기, 배포 검증. 전체 목록은 [테스트 기획](docs/test-plan.md).
@@ -271,7 +273,7 @@ flowchart TB
 | [기획서](docs/planning.md) | 문제 정의부터 발표 구성까지 15장 |
 | [API 명세](docs/api-spec.md) | API 8개와 권한·안전·집계 정책 |
 | [데이터 사전](docs/data-dictionary.md) | 테이블 15개, 소유 서비스·저장소 |
-| [테스트케이스 기획](docs/test-plan.md) | 69개 (P0 17개), 상태와 근거, 리허설 순서 |
+| [테스트케이스 기획](docs/test-plan.md) | 72개 (P0 17개), 상태와 근거, 리허설 순서 |
 | [EKS 배포 기획](docs/deployment-eks.md) | 서비스 분리, 탄력 설계, 매니페스트 예시, CI/CD, 비용·리스크 |
 | [가이드 기준 리뷰](docs/review-mentor-guide.md) | 8항목 판정, 체크리스트, 범위 칼질, 발표·Q&A |
 | [로컬 실행 안내](docs/local-preview.md) | 설치·실행, 확인할 흐름, 검증 |

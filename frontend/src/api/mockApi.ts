@@ -178,23 +178,6 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
       return wait({ jobId, duplicated: false });
     },
 
-    /** 목 API는 오늘 작업 목록을 저장하지 않으므로 작업만 지운다 (화면 목록은 store가 지운다) */
-    async cancelJob(jobId) {
-      if (!jobs.has(jobId)) throw new Error('없는 정비 작업입니다.');
-      if (completed.has(jobId)) throw new Error('이미 결과를 기록한 작업은 취소할 수 없습니다.');
-      jobs.delete(jobId);
-      return wait({ jobId, status: 'CANCELLED' as const, cancelledAt: new Date().toISOString() });
-    },
-
-    /** 목 API는 진행을 저장하지 않는다 (이어하기는 store의 기록 목록으로 한다) */
-    async saveProgress(taskId, currentStepId, stepLogs) {
-      const task = [...tasks.values()].find(t => t.taskId === taskId);
-      if (!task) throw new Error('없는 작업 단위(task)입니다.');
-      const i = task.steps.findIndex(st => st.stepId === currentStepId);
-      if (i < 0) throw new Error(`이 작업의 절차 단계가 아닙니다: ${currentStepId}`);
-      return wait({ taskId, currentStepId, currentStep: i, savedSteps: stepLogs.length });
-    },
-
     async getManufacturerMetrics() {
       load();
       return wait({ updatedAt: new Date().toISOString(), parts: metrics.map(m => ({ ...m })) });

@@ -52,10 +52,6 @@ interface Actions {
   submitRecord(req: CompletionRequest): Promise<void>;
   resume(historyId: string): Promise<void>;
   backToCandidates(): void;
-  /** 잠시 나가기: 지금 단계를 서버에 저장하고 첫 화면으로. 오늘 작업 목록에 진행 중으로 남아 이어할 수 있다 */
-  pauseRepair(): Promise<void>;
-  /** 진단 취소: 진행 중인 작업을 취소하고 오늘 작업 목록에서 지운다 */
-  cancelDiagnosis(): Promise<void>;
   backToRepair(): void;
   reset(): void;
   togglePanel(side: 'left' | 'right'): void;
@@ -86,13 +82,6 @@ const narrow = () => typeof window !== 'undefined' && window.innerWidth < 900;
 
 export function createRepairStore(api: RepairThreadApi = defaultApi) {
   return createStore<State & Actions>()((set, get) => {
-    // 진행 저장은 보낸 순서대로 하나씩 (늦게 도착한 옛 요청이 나중 단계를 덮어쓰지 않게)
-    let progressQueue: Promise<unknown> = Promise.resolve();
-    const queueProgress = (taskId: string, stepId: string, logs: StepLog[]) => {
-      const run = progressQueue.then(() => api.saveProgress(taskId, stepId, logs));
-      progressQueue = run.catch(() => undefined);
-      return run;
-    };
     const trackStep = (step: number) => {
       const id = get().liveId; if (!id) return;
       set({ history: get().history.map(h => (h.id === id ? { ...h, step } : h)) });
@@ -147,8 +136,6 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         if (log[from]) log[from] = { ...log[from], endedAt: now };
         log[to] = log[to] ? { ...log[to], endedAt: undefined } : { stepId: to, startedAt: now, blocked: false };
         set({ step: n, stepLog: log }); trackStep(n);
-        // 단계를 옮길 때마다 진행을 저장한다 (창을 갑자기 닫아도 이어할 수 있게). 실패해도 수리는 계속한다
-        void queueProgress(s.task.taskId, to, Object.values(log)).catch(() => undefined);
       },
       next() { get().goTo(get().step + 1); },
       prev() { get().goTo(get().step - 1); },
@@ -214,26 +201,6 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         const created = get().job?.jobId;
         const sid = t.steps[h.step].stepId;
         set({ step: h.step, acked, liveId: h.id, stepLog: { [sid]: { stepId: sid, startedAt: Date.now(), blocked: false } }, history: get().history.filter(x => x.id === h.id || x.id !== created) });
-      },
-      async pauseRepair() {
-        const s = get(); const st = s.task?.steps[s.step];
-        if (s.task && st) {
-          try { await queueProgress(s.task.taskId, st.stepId, Object.values(s.stepLog)); }
-          catch (e) { set({ error: (e as Error).message }); return; }
-        }
-        set({ ...fresh, error: '', notice: '작업을 잠시 멈췄습니다. 오늘 내 작업에서 이어서 할 수 있습니다.', panels: { ...get().panels, right: true } });
-      },
-      async cancelDiagnosis() {
-        const s = get(); const job = s.job;
-        if (!job) { set({ ...fresh }); return; }
-        const remove = new Set([job.jobId, s.liveId].filter((x): x is string => !!x));
-        // 이미 결과를 기록한 작업(다시 보기)은 취소하지 않고 화면만 닫는다
-        const done = s.history.some(h => remove.has(h.id) && h.status === 'done');
-        if (!done) {
-          try { await api.cancelJob(job.jobId); }
-          catch (e) { set({ error: (e as Error).message }); return; }
-        }
-        set({ ...fresh, error: '', notice: done ? '' : '진단을 취소했습니다.', history: done ? get().history : get().history.filter(h => !remove.has(h.id)) });
       },
       backToCandidates() { set({ mode: 'cands', task: null, step: 0, acked: {}, liveId: null }); },
       backToRepair() { set({ mode: 'repair' }); },

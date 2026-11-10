@@ -168,10 +168,4 @@ export interface RepairThreadApi {
   listHistory(): Promise<HistoryEntry[]>;
   /** 이어하기: 저장된 작업을 지금 통계로 다시 연다 */
   getRepairJob(jobId: string): Promise<RepairJob>;
-  /** 진단 취소: 오늘 작업 목록과 원인 통계에서 빠진다 */
-  cancelJob(jobId: string): Promise<CancelResult>;
-  /** 잠시 나가기·단계 이동: 지금 단계와 단계 기록을 저장해 이어하기 때 그 단계부터 연다 */
-  saveProgress(taskId: string, currentStepId: string, stepLogs: StepLog[]): Promise<ProgressResult>;
 }
-export interface CancelResult { jobId: string; status: 'CANCELLED'; cancelledAt: string }
-export interface ProgressResult { taskId: string; currentStepId: string; currentStep: number; savedSteps: number }

@@ -50,7 +50,5 @@ export function createHttpApi({ baseUrl = '', userId, fetchImpl = fetch }: HttpA
     listVehicles: () => call('GET', '/vehicles'),
     getDtcSuggestions: vehicleId => call('GET', `/vehicles/${seg(vehicleId)}/dtc-codes`),
     listHistory: () => call('GET', '/repair-jobs'),
-    cancelJob: jobId => call('PUT', `/repair-jobs/${seg(jobId)}/cancellation`),
-    saveProgress: (taskId, currentStepId, stepLogs) => call('PUT', `/tasks/${seg(taskId)}/progress`, { currentStepId, stepLogs }),
   };
 }

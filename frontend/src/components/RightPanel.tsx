@@ -54,8 +54,8 @@ export function RightPanel() {
         {mode === 'record' && <RecordForm />}
       </div>
       <footer className="rp-f">
-        {mode === 'cands' && <button className="pill" onClick={() => { if (window.confirm('이 진단을 취소할까요? 오늘 내 작업에서 사라지고 이어서 할 수 없습니다.')) void s.cancelDiagnosis(); }}>진단 취소</button>}
-        {mode === 'repair' && <><button className="pill" onClick={() => void s.pauseRepair()} title="지금 단계를 저장하고 나갑니다. 오늘 내 작업에서 이어서 할 수 있습니다">잠시 나가기</button><button className="pill" onClick={s.backToCandidates}>원인 다시 고르기</button><button className="pill solid" onClick={s.openRecord} disabled={!hvCleared(s)} title={hvCleared(s) ? '' : '고전압 0V 확인을 먼저 체크하세요'}>결과 기록</button></>}
+        {mode === 'cands' && <button className="pill" onClick={s.reset}>진단 취소</button>}
+        {mode === 'repair' && <><button className="pill" onClick={s.backToCandidates}>원인 다시 고르기</button><button className="pill solid" onClick={s.openRecord} disabled={!hvCleared(s)} title={hvCleared(s) ? '' : '고전압 0V 확인을 먼저 체크하세요'}>결과 기록</button></>}
         {mode === 'record' && <button className="pill" onClick={s.backToRepair}>← 수리 단계로</button>}
       </footer>
     </aside>

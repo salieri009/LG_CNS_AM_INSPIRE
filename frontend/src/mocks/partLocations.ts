@@ -13,7 +13,8 @@ export function partLocation(partId: string): { vehicle: string; box: PartBox } 
     const proc = c.procedures.find(p => p.targetPartId === partId);
     const key = cand?.highlightNode ?? proc?.steps.at(-1)?.highlightNodes[0];
     const box = EXTRA[partId] ?? cand?.box ?? c.procedures.flatMap(p => p.parts ?? []).find(b => b.key === key);
-    if (cand || proc) return box && { vehicle: caseVehicle(c), box };
+    // 다른 코드에 함께 올라온 후보(예: 도어 코드의 12V)는 이 사례에 상자가 없으니 다음 사례에서 찾는다
+    if ((cand || proc) && box) return { vehicle: caseVehicle(c), box };
   }
   return undefined;
 }

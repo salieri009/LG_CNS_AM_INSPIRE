@@ -1,5 +1,6 @@
 # API 명세 초안
 > 원본: [기획서 12장](./planning.md) · 2026-11-10 기준 초안. 팀 확정 전 변경될 수 있음
+> 실제로 동작하는 API(요청·응답·오류)는 [api-reference.md](./api-reference.md) (PR #18 백엔드 기준)
 
 
 모든 경로는 API Gateway를 거침. 보드에서 3\~6번은 /api/v1 접두어가 빠져 있어 통일을 제안함.
@@ -16,6 +17,22 @@
 | 8 | POST /api/v1/procedure-steps/{id}/knowledge | A③ 팁 남기기 | knowledge (D22) | 작성한 팁과 공개 여부. 비공개 팁은 작성자만 봄 |
 
 8번은 프론트(PR #8)가 단계 팁 남기기에 쓰면서 추가함. 지금은 목 API(`frontend/src/api`)가 같은 인터페이스로 1\~8번을 흉내 냄.
+
+백엔드(PR #18, D25)는 1\~6·8번을 구현함 (7번 미구현). 2번 요청은 `dtcCode` 하나이고, 담당 서비스 열은 모놀리스 안의 같은 이름 모듈로 읽으면 됨.
+
+**구현에서 추가한 API 9\~15 (PR #18, D25)**: 화면이 목 데이터를 직접 읽던 부분과 이어하기·취소·진행 저장을 API로 뺌. 모두 정비사 화면용이고 사용자 구분은 `X-User-Id` 헤더 (인증 L1\~L3 전까지).
+
+| # | 메서드·경로 | 화면 | 담당 모듈 | 응답 핵심 |
+| --- | --- | --- | --- | --- |
+| 9 | GET /api/v1/me | 상단 프로필 | auth | 이름·소속·경력·배지 |
+| 10 | GET /api/v1/vehicles | A① 차량 선택 | production | 시연 차량 목록 (예시 VIN) |
+| 11 | GET /api/v1/vehicles/{id}/dtc-codes | A① 코드 검색 | diagnosis | 차종별 자주 검색된 고장코드 (API 2 호출마다 검색 수 +1) |
+| 12 | GET /api/v1/repair-jobs | 첫 화면 오늘 작업 | record | 내 작업 20건, 진행 중이면 이어할 단계 |
+| 13 | GET /api/v1/repair-jobs/{id} | 이어하기 | diagnosis → record | 작업 다시 열기 (후보·관측 비율 다시 계산) |
+| 14 | PUT /api/v1/repair-jobs/{id}/cancellation | 진단 취소 | record | 상태 CANCELLED, 오늘 목록·원인 통계에서 빠짐. 완료한 작업은 409. 프론트 미연결 |
+| 15 | PUT /api/v1/tasks/{id}/progress | 잠시 나가기 | record | 지금 단계·단계 기록 저장. 확인 안 한 고전압 단계를 지나면 409. 프론트 미연결 |
+
+공통 오류는 RFC 9457 ProblemDetail(400 형식·관계없는 부품/단계, 403 다른 정비사의 작업, 404 없음, 409 상태 불일치·고전압 확인 누락). 요청·응답 전체는 [api-reference.md](./api-reference.md) (PR #18).
 
 ## 관련 정책
 

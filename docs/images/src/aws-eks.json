@@ -1,7 +1,7 @@
 {
  "scale": 40,
- "title": "Repair Thread · AWS 배포 구성도 (EKS)",
- "caption": "파드·노드·DB가 사용량 따라 늘고 줄어듦 · 파란 링: HPA로 늘고 줄며 최소 1개 · 노란 링: 시연 시간에만 켜짐 (KEDA) · 고정 과금은 EKS 컨트롤 플레인·ALB·NAT",
+ "title": "카닥 · AWS 배포 구성도 (EKS · 목표 구성)",
+ "caption": "파드·노드·DB가 사용량 따라 늘고 줄어듦 · 파란 링: HPA, 최소 1개 · 노란 링: 시연 시간에만 켜짐 (KEDA) · 회색 글자: 고정 응답 Mock (D23) · 고정 과금은 컨트롤 플레인·ALB·NAT",
  "platforms": [
   {
    "id": "cicd",
@@ -72,14 +72,14 @@
    "icon": "person",
    "label": "정비사",
    "x": -5,
-   "y": 2
+   "y": -1
   },
   {
    "id": "eng",
    "icon": "person",
    "label": "제조사 담당자",
-   "x": -5,
-   "y": 8
+   "x": -7,
+   "y": 4.5
   },
   {
    "id": "dev",
@@ -100,7 +100,7 @@
    "id": "s3",
    "on": "edge",
    "icon": "aws:AmazonSimpleStorageService",
-   "label": "S3 · 3D 모델",
+   "label": "S3 · 3D 모델·매뉴얼·팁 사진",
    "x": 4,
    "y": 8.6
   },
@@ -205,7 +205,8 @@
     },
     {
      "icon": "si:springboot",
-     "label": "auth"
+     "label": "auth (Mock)",
+     "labelColor": "#94a3b8"
     }
    ]
   },
@@ -230,7 +231,8 @@
     },
     {
      "icon": "si:springboot",
-     "label": "knowledge"
+     "label": "knowledge (Mock)",
+     "labelColor": "#94a3b8"
     },
     {
      "icon": "si:springboot",
@@ -243,9 +245,9 @@
   {
    "on": "eks",
    "dir": "h",
-   "x": 10,
+   "x": 9,
    "y": 16,
-   "gap": 4.8,
+   "gap": 5.6,
    "items": [
     {
      "icon": "si:springboot",
@@ -255,13 +257,14 @@
     },
     {
      "icon": "si:springboot",
-     "label": "production"
+     "label": "production (Mock)",
+     "labelColor": "#94a3b8"
     },
     {
      "icon": "hex:M:#1e293b",
      "label": "manufacturer-mock",
      "ring": "amber",
-     "labelColor": "amber"
+     "labelColor": "#94a3b8"
     }
    ]
   }
@@ -278,7 +281,8 @@
   {
    "from": "cf",
    "to": "s3",
-   "label": "/models/*"
+   "label": "/models · /manual",
+   "labelOffset": -34
   },
   {
    "from": "cf",
@@ -331,5 +335,6 @@
    "label": "시크릿 · 로그",
    "dashed": true
   }
- ]
+ ],
+ "subtitle": "11-10 12:00까지 TC-K8S-01·02를 통과 못 하면 같은 매니페스트를 k3s에 올림 (Plan B, 14-6)"
 }

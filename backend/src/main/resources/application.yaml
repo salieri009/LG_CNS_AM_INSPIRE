@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: repair-thread
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/record?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME:repair}
+    password: ${DB_PASSWORD:repair}
+  flyway:
+    # 모듈별 스키마. 첫 번째(record)에 flyway_schema_history가 생긴다. 스키마 생성은 docker/mysql/init이 맡는다
+    schemas: record,auth,production,diagnosis,guide,knowledge
+    create-schemas: false
+
+  mvc:
+    # 프레임워크 오류(잘못된 JSON 등)도 ProblemDetail로 응답
+    problemdetails:
+      enabled: true
+
+server:
+  port: ${PORT:8080}
+
+repair-thread:
+  # VIN 원문 대신 HMAC 조회 키로 차량을 찾는다. 시드(V2__seed.sql)는 기본 키로 만들었으므로 키를 바꾸면 시드를 다시 생성한다
+  vin-hmac-key: ${VIN_HMAC_KEY:repair-thread-demo-vin-key}
+  # 인증(Gateway) 전까지 요청 헤더 X-User-Id가 없으면 이 사용자로 본다
+  default-user-id: tech-kim
+  # 프론트 개발 서버 (vite)
+  cors-origins: ${CORS_ORIGINS:http://localhost:5180,http://localhost:5173}

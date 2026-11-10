@@ -9,7 +9,7 @@ export const LATCH_CASE: CaseSeed = {
     { partId: 'part-harness-rl', partName: '리어 도어 하네스 (LH)', officialOrder: 3, checkMethod: '래치·스위치 구간 도통 시험', count: 8, n: 48, chronic: false, agree: 8, box: { key: 'harness', name: '리어 도어 하네스', box: [-0.6, 0.7, -0.84, 0.9, 0.025, 0.025], offset: [0, 0, 0], shape: 'harness' } },
     { partId: 'part-hall-rl', partName: '외부 핸들 홀 센서 (리어 LH)', officialOrder: 4, checkMethod: '외부 핸들 누름 신호 확인', count: 2, n: 48, chronic: false, agree: 2, box: { key: 'hall', name: '외부 핸들 홀 센서', box: [-0.6, 0.95, -0.97, 0.14, 0.03, 0.03], offset: [0, 0, 0], shape: 'connector' } },
     // 12V가 낮으면 도어 모듈이 래치를 못 풀어 같은 코드가 뜬다. 다른 코드(B0F71)와 함께 뜨면 공통 원인으로 올라온다
-    { partId: 'part-12v', partName: '12V 배터리 전압 저하', officialOrder: 5, checkMethod: '12V 전압부터 측정', count: 2, n: 48, chronic: false, agree: 2, procedureId: 'proc-12v', highlightNode: 'battery' },
+    { partId: 'part-12v', partName: '12V 배터리 전압 저하', officialOrder: 5, checkMethod: '12V 전압부터 측정', count: 1, n: 48, chronic: false, agree: 1, procedureId: 'proc-12v', highlightNode: 'battery' },
   ],
   procedures: [{
     procedureId: 'proc-latch-rl', procedureVersion: 'M3-2017-2023 / 11353702', targetPartId: 'part-latch-rl', targetPartName: '리어 도어 래치 (LH)',

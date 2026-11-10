@@ -91,23 +91,40 @@ export function createRepairStore(api: CarDocApi = defaultApi) {
       const id = get().liveId; if (!id) return;
       set({ history: get().history.map(h => (h.id === id ? { ...h, step } : h)) });
     };
-    // 코드나 증상이 바뀌면 진단을 다시 만든다. 이미 점검한 결과(원인 아님·확정)는 남은 후보에 한해 유지한다
+    let rebuildVersion = 0;
+    let pendingCodes: { jobId: string; codes: string[] } | null = null;
+    const cancelRebuild = () => { rebuildVersion += 1; pendingCodes = null; };
+    const selectedCodes = () => {
+      const job = get().job;
+      return pendingCodes && pendingCodes.jobId === job?.jobId ? pendingCodes.codes : job?.codes.map(c => c.code) ?? [];
+    };
+    // 응답 전의 코드 선택도 누적하고, 가장 최근 요청만 반영한다.
     const rebuild = async (codes: string[], symptoms: string[]) => {
-      const s = get(); if (!s.vehicle || !s.job) return;
+      const s = get(); if (!s.vehicle || !s.job || s.mode !== 'cands') return;
+      const version = ++rebuildVersion;
+      pendingCodes = { jobId: s.job.jobId, codes };
+      const isCurrent = () => version === rebuildVersion && get().mode === 'cands'
+        && get().job?.jobId === s.job!.jobId && get().vehicle === s.vehicle;
       try {
         const job = await api.createRepairJob({ vehicleId: s.vehicle.vehicleId, dtcCodes: codes, symptoms });
         // 기다리는 사이 진단이 취소되거나 수리로 넘어갔으면 늦게 온 결과는 버린다. 그사이 누른 점검 결과는 지금 상태에서 다시 읽는다
         const cur = get();
-        if (cur.mode !== 'cands' || cur.job?.jobId !== s.job.jobId) return;
+        if (!isCurrent()) return;
+        pendingCodes = null;
         const ids = new Set(job.candidates.map(c => c.partId));
         const keep = cur.job?.candidates[cur.selected]?.partId;
         set({ job, error: '', ruledOut: cur.ruledOut.filter(x => ids.has(x)), confirmed: cur.confirmed && ids.has(cur.confirmed) ? cur.confirmed : null, selected: Math.max(0, job.candidates.findIndex(c => c.partId === keep)) });
-      } catch (e) { set({ error: (e as Error).message }); }
+      } catch (e) {
+        if (!isCurrent()) return;
+        pendingCodes = null;
+        set({ error: (e as Error).message, symptoms: s.job.symptoms });
+      }
     };
     return {
       vehicle: null, vin: null, ...fresh, panels: { left: true, right: !narrow() }, history: HISTORY_SEED.map(h => ({ ...h })), symptoms: [], error: '', notice: '', lastRecord: null,
 
       async lookup(vin) {
+        cancelRebuild();
         try {
           const vehicle = await api.lookupVehicle({ vin });
           // 좁은 화면에서는 차를 고르면 고장코드 목록이 있는 오른쪽 패널로 넘어간다
@@ -116,6 +133,7 @@ export function createRepairStore(api: CarDocApi = defaultApi) {
         catch (e) { set({ error: (e as Error).message }); }
       },
       async pickCode(code) {
+        cancelRebuild();
         const v = get().vehicle; if (!v) return;
         try {
           const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: [code], symptoms: get().symptoms });
@@ -123,21 +141,22 @@ export function createRepairStore(api: CarDocApi = defaultApi) {
         } catch (e) { set({ error: (e as Error).message }); }
       },
       async addCode(code) {
-        const j = get().job; if (!j || j.codes.some(c => c.code === code)) return;
-        await rebuild([...j.codes.map(c => c.code), code], get().symptoms);
+        const codes = selectedCodes(); if (!get().job || codes.includes(code)) return;
+        await rebuild([...codes, code], get().symptoms);
       },
       async removeCode(code) {
-        const j = get().job; if (!j || j.codes.length < 2) return;
-        await rebuild(j.codes.map(c => c.code).filter(c => c !== code), get().symptoms);
+        const codes = selectedCodes(); if (!get().job || codes.length < 2) return;
+        await rebuild(codes.filter(c => c !== code), get().symptoms);
       },
       async toggleSymptom(symptom) {
         const cur = get().symptoms;
         const symptoms = cur.includes(symptom) ? cur.filter(x => x !== symptom) : [...cur, symptom];
         set({ symptoms });
-        const j = get().job; if (j && get().mode === 'cands') await rebuild(j.codes.map(c => c.code), symptoms);
+        if (get().job && get().mode === 'cands') await rebuild(selectedCodes(), symptoms);
       },
       select(index) { set({ selected: index }); },
       async startRepair(partId) {
+        cancelRebuild();
         const job = get().job; if (!job) return;
         try {
           const task = await api.createTask(job.jobId, partId);
@@ -196,9 +215,10 @@ export function createRepairStore(api: CarDocApi = defaultApi) {
         catch (e) { set({ error: (e as Error).message }); return; }
         const id = get().liveId;
         const cand = job.candidates.find(c => c.partId === req.actualCausePartId);
-        const lastRecord = !res.duplicated && cand ? { code: job.dtcCode, partName: cand.partName, before: cand.observedRaw, after: { count: cand.observedRaw.count + 1, n: cand.observedRaw.n + 1 } } : null;
+        // merged 후보의 observedRaw는 codes[0] 사례의 수치다. 같은 코드로 표시한다.
+        const lastRecord = !res.duplicated && cand ? { code: cand.codes[0], partName: cand.partName, before: cand.observedRaw, after: { count: cand.observedRaw.count + 1, n: cand.observedRaw.n + 1 } } : null;
         const notice = res.duplicated ? '이미 기록된 작업입니다.'
-          : req.actualCausePartId ? `기록했습니다. 같은 사양의 원인 통계가 n=${job.candidates[0].observedRaw.n + 1}건 기준으로 다시 계산됐습니다.`
+          : cand ? `기록했습니다. ${cand.codes[0]}의 같은 사양 원인 통계가 n=${cand.observedRaw.n + 1}건 기준으로 다시 계산됐습니다.`
             : '기록했습니다. 원인 미확인이라 원인 통계에는 넣지 않았습니다.';
         set({
           ...fresh, lastRecord,
@@ -228,7 +248,7 @@ export function createRepairStore(api: CarDocApi = defaultApi) {
       },
       backToCandidates() { set({ mode: 'cands', task: null, step: 0, acked: {}, liveId: null }); },
       backToRepair() { set({ mode: 'repair' }); },
-      reset() { set({ ...fresh }); },
+      reset() { cancelRebuild(); set({ ...fresh }); },
       togglePanel(side) {
         const open = !get().panels[side];
         const other = side === 'left' ? 'right' : 'left';

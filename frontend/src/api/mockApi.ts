@@ -18,6 +18,7 @@ const CHANNEL = 'repair-thread-mock';
 export interface KeyValueStorage { getItem(key: string): string | null; setItem(key: string, value: string): void }
 
 interface Shared {
+  countSchemaVersion?: number;
   counts: Record<string, { count: number; n: number; agree: number }>;
   metrics: PartMetric[];
   completed: string[];
@@ -69,7 +70,18 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
     if (!raw) return;
     try {
       const s = JSON.parse(raw) as Shared;
-      cases.forEach(c => c.candidates.forEach(x => { const v = s.counts[caseKey(c, x.partId)]; if (v) Object.assign(x, v); }));
+      cases.forEach(c => c.candidates.forEach(x => {
+        const v = s.counts[caseKey(c, x.partId)];
+        if (!v) return;
+        Object.assign(x, v);
+        // #25에서 추가한 배터리 후보가 기존 사례의 완료 건수보다 초과 집계됐다.
+        // 이전 저장값에서도 시드 초과분만 보정하고 사용자가 추가한 완료 기록은 보존한다.
+        if ((s.countSchemaVersion ?? 1) < 2 && c.code === 'B1A24') {
+          const excess = x.partId === 'part-12v' ? 1 : x.partId === 'part-mx-lv' ? 2 : 0;
+          x.count = Math.max(0, x.count - excess);
+          x.agree = Math.max(0, x.agree - excess);
+        }
+      }));
       metrics = s.metrics; completed = new Set(s.completed); knowledge = s.knowledge;
       acks.clear(); s.acks.forEach(a => acks.set(`${a.taskId}/${a.stepId}`, a));
     } catch { /* 깨진 저장값은 무시하고 시드로 동작 */ }
@@ -78,7 +90,7 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
     if (!storage) return;
     const counts: Shared['counts'] = {};
     cases.forEach(c => c.candidates.forEach(x => { counts[caseKey(c, x.partId)] = { count: x.count, n: x.n, agree: x.agree }; }));
-    const s: Shared = { counts, metrics, completed: [...completed], acks: [...acks.values()], knowledge };
+    const s: Shared = { countSchemaVersion: 2, counts, metrics, completed: [...completed], acks: [...acks.values()], knowledge };
     try { storage.setItem(STORE_KEY, JSON.stringify(s)); } catch { /* 저장 못 해도 이 탭에서는 동작 */ }
     channel?.postMessage('changed');
   };
@@ -185,7 +197,7 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
       const causeShares = cases.map(c => {
         const causes = [...c.candidates].sort((a, b) => b.count - a.count).map(x => ({ partId: x.partId, partName: x.partName, count: x.count }));
         const key = `${caseVehicle(c)}|${c.code}`;
-        return { vehicle: caseVehicle(c), code: c.code, description: c.description, n: causes.reduce((a, x) => a + x.count, 0), causes, cluster: CLUSTERS[key] };
+        return { vehicle: caseVehicle(c), code: c.code, description: c.description, n: c.candidates[0]?.n ?? 0, causes, cluster: CLUSTERS[key] };
       });
       return wait({ updatedAt: new Date().toISOString(), parts: metrics.map(m => ({ ...m })), variantTimes: VARIANT_TIMES.map(x => ({ ...x })), causeShares });
     },

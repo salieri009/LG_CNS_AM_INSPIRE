@@ -22,11 +22,11 @@
 | JOB\_TASK | procedure\_id, procedure\_version, actual\_minutes, standard\_minutes\_snapshot, module\_replaced, replaced\_parts | 실제 작업 시간·모듈 교체 | 정비 기록 / 정비 DB |
 | STEP\_RECORD | state, started\_at, ended\_at, safety\_ack\_user\_id, safety\_ack\_at, blocked, difficulty\_code(막힌 이유), difficulty\_note | 단계 진행, 자동 측정 시간, 고전압 확인, 막힘. 프론트 코드의 `job_step_log`가 이 테이블 | 정비 기록 / 정비 DB |
 
-ERD(기획서 12-2)의 CAUSE_STAT은 백엔드에서 **시드 기준선 테이블 + 조회 때 실제 완료 기록 합산**으로 정함 (D25, 이슈 #5). 목 API는 지금처럼 조회 때 계산함.
+ERD(기획서 12-2)의 CAUSE_STAT은 백엔드에서 시드 기준선 테이블 + 조회 때 실제 완료 기록 합산으로 정함 (D25, 이슈 #5). 목 API는 지금처럼 조회 때 계산함.
 
 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음 (예: REPAIR\_JOB.vehicle\_id는 생산 연동 서비스의 VEHICLE id). 분석 서비스는 테이블 없이 정비 기록 서비스의 집계 조회로 계산.
 
-**구현과 다른 점 (PR #18, D25)**: 백엔드는 모듈마다 MySQL 스키마를 따로 두고(auth·production·diagnosis·guide·knowledge·record) 앱 계정 하나가 씀. 다른 모듈 테이블을 조인하지 않는 규칙은 Spring Modulith 테스트로 지킴. 테이블 이름은 소문자(`record.repair_job` 등).
+구현과 다른 점 (PR #18, D25): 백엔드는 모듈마다 MySQL 스키마를 따로 두고(auth·production·diagnosis·guide·knowledge·record) 앱 계정 하나가 씀. 다른 모듈 테이블을 조인하지 않는 규칙은 Spring Modulith 테스트로 지킴. 테이블 이름은 소문자(`record.repair_job` 등).
 
 | 설계 (위 표) | 구현 |
 | --- | --- |

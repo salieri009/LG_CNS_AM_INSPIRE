@@ -1,6 +1,6 @@
 {
  "scale": 40,
- "title": "Repair Thread · AWS 배포 구성도 (EKS · 목표 구성)",
+ "title": "카닥 · AWS 배포 구성도 (EKS · 목표 구성)",
  "caption": "파드·노드·DB가 사용량 따라 늘고 줄어듦 · 파란 링: HPA, 최소 1개 · 노란 링: 시연 시간에만 켜짐 (KEDA) · 회색 글자: 고정 응답 Mock (D23) · 고정 과금은 컨트롤 플레인·ALB·NAT",
  "platforms": [
   {

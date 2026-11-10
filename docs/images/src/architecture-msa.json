@@ -1,6 +1,6 @@
 {
  "scale": 40,
- "title": "Repair Thread · MSA 구성도 (C4 Level 2 · 논리 서비스 7개)",
+ "title": "카닥 · MSA 구성도 (C4 Level 2 · 논리 서비스 7개)",
  "caption": "서비스 간에는 ID만 참조, 다른 서비스 DB 직접 조인 금지 · 저장소는 Aurora 1개에 스키마 5개 + S3 · 회색 (Mock): 시연은 고정 응답 (D23) · 배포 단위 11개는 EKS 구성도",
  "platforms": [
   {

@@ -62,7 +62,7 @@ npm run lint
 
 ## 팀 공유 메시지
 
-현재까지 개발한 Repair Thread 프론트엔드를 각자 로컬에서 실행해 보실 수 있도록 GitHub에 공유했습니다 (master, 진행 중인 화면은 PR 브랜치). 아직 개발 중이며, 이후 기능과 화면은 계속 보완할 예정입니다.
+현재까지 개발한 카닥 프론트엔드를 각자 로컬에서 실행해 보실 수 있도록 GitHub에 공유했습니다 (master, 진행 중인 화면은 PR 브랜치). 아직 개발 중이며, 이후 기능과 화면은 계속 보완할 예정입니다.
 
 저장소: https://github.com/salieri009/LG_CNS_AM_INSPIRE
 

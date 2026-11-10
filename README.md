@@ -97,10 +97,11 @@ npm run build   # tsc -b + vite build
 
 ## 2. Solution & Experience
 
-![정비 결과 한 건이 진단 피드백(정비사)과 제조 피드백(공장) 두 방향으로 되돌아가는 루프](docs/images/feedback-loop.png)
+![정비 결과 한 건이 진단 피드백(정비사)과 제조 피드백(공장) 두 방향으로 되돌아가는 루프. 점선 상자는 설계만 한 부분](docs/images/feedback-loop.png)
 
 - **진단 피드백 (왼쪽)**: 기록이 쌓일수록 다음 정비사가 보는 관측 원인 비율이 정확해짐
 - **제조 피드백 (오른쪽)**: 같은 기록이 공장 지표가 되어 개선 검토의 근거가 되고, 다음 생산 차수로 이어짐
+- 실선은 지금 목 API로 동작하는 부분, 점선(익명화, B②·B③ 사양 비교·고장 다발, B④ 개선 검토)은 설계만 한 부분
 
 ### 핵심 기능 3개
 
@@ -153,13 +154,19 @@ Tesla Model 3, 고장코드 B1A24 (리어 왼쪽 도어 래치, 예시 코드). 
 | **Mock** | 백엔드 서비스 전체를 같은 인터페이스(`RepairThreadApi`)의 목 API로 대체. 시드 사례 8개, 차량 2대, 단계 팁 12건. 상태는 브라우저 `localStorage` |
 | **설계만** | Spring Boot 마이크로서비스, EKS 배포, 신입 모드, 개선 제안, 팁 추천·신고, 실제 제조사 연동 |
 
+![현재 시연 구성: 정비사 창과 공장 창이 useRepairStore와 RepairThreadApi를 거쳐 브라우저 안 목 API를 쓰고, localStorage와 BroadcastChannel로 창끼리 새로고침 없이 갱신됨](docs/images/demo-runtime.png)
+
+화면 코드는 `RepairThreadApi` 인터페이스에만 의존함. 지금은 목 구현이 붙어 있고, 백엔드가 생기면 같은 인터페이스의 HTTP 구현으로 바꿈.
+
 ## 5. Technical Design
 
 ### 아키텍처 (C4 Level 2)
 
-![MSA 구성도: 클라이언트, API Gateway, Spring Boot 마이크로서비스 5개, 서비스별 저장소, 외부 제조사 시스템](docs/images/architecture-msa.png)
+![MSA 구성도: 클라이언트, API Gateway, Spring Boot 마이크로서비스 7개(회색은 Mock), 서비스별 스키마와 S3, 외부 제조사 시스템](docs/images/architecture-msa.png)
 
-- 마이크로서비스 5개 (배포 단위로는 auth·knowledge를 더 나눠 11개, D22). 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음
+- 논리 서비스 7개: 진단, 3D 가이드, 정비 기록, 분석, 생산 연동에 auth와 knowledge를 나눔 (D22). 배포 단위는 웹앱 2개·Gateway·제조사 mock까지 11개
+- 회색 글자(auth, knowledge, 생산 연동, 제조사 시스템)는 시연에서 고정 응답 Mock (D23)
+- 서비스 간에는 ID만 참조하고 다른 서비스 DB를 직접 조인하지 않음. 저장소는 Aurora 클러스터 1개에 스키마 5개 + S3
 - 진단·분석은 자체 DB 없이 다른 서비스를 호출함 (분석은 정비 DB 집계 조회)
 - Spring Boot 계층: Controller → Application Service → Domain Service → Repository / External API Client
 - 프론트는 화면 코드가 `RepairThreadApi` 인터페이스에만 의존해서, 목 API를 HTTP 구현으로 바꾸면 백엔드에 그대로 붙음
@@ -171,24 +178,28 @@ Tesla Model 3, 고장코드 B1A24 (리어 왼쪽 도어 래치, 예시 코드). 
 flowchart TB
   MECH([정비사]) --> WEB[정비사 웹앱]
   ENG([제조사 담당자]) --> DASH[공장 대시보드]
-  WEB --> GW[API Gateway<br/>인증·권한·제조사 범위]
+  WEB --> GW[API Gateway<br/>토큰 검증·라우팅]
   DASH --> GW
-  GW --> DIAG[진단] & GUIDE[3D 가이드] & REC[정비 기록] & ANA[분석] & PI[생산 연동]
+  GW --> DIAG[진단] & GUIDE[3D 가이드] & REC[정비 기록] & ANA[분석] & PI[생산 연동 · Mock] & KN[knowledge · Mock] & AUTH[auth · Mock]
   DIAG --> PI
   DIAG --> REC
-  ANA --> REC
-  GUIDE -.-> MS[(3D 모델 저장소)]
-  REC -.-> RDB[(정비 DB)]
-  PI -.-> PDB[(생산 DB)]
-  PI --> EXT[제조사 시스템 · 외부]
+  ANA -->|집계 조회| REC
+  REC -->|공개 동의 메모| KN
+  GUIDE -.-> GDB[(guide 스키마 · 3D 모델 S3)]
+  KN -.-> KDB[(knowledge 스키마 · 팁 사진 S3)]
+  REC -.-> RDB[(record 스키마)]
+  PI -.-> PDB[(production 스키마)]
+  AUTH -.-> ADB[(auth 스키마)]
+  PI --> EXT[제조사 시스템 · 외부 · Mock]
 ```
 
 </details>
 
 ### 배포 (AWS · EKS)
 
-![AWS 배포 구성도: CloudFront·S3, ALB·NAT, EKS Auto Mode 파드 11개, Aurora Serverless v2, CI/CD, 관리형 서비스](docs/images/aws-eks.png)
+![AWS 배포 구성도 (목표 구성): CloudFront·S3, ALB·NAT, EKS Auto Mode 파드 11개(회색 글자 4개는 Mock), Aurora Serverless v2, CI/CD, 관리형 서비스](docs/images/aws-eks.png)
 
+- 목표 구성. 지금 시연은 위 [현재 시연 구성](#4-구현-현황-실제-구현--mock--설계만)처럼 브라우저 안에서 돎
 - Deployment 11개를 EKS Auto Mode 클러스터 하나에서 관리, 동시 접속이 적다는 전제로 파드(HPA·KEDA cron)·노드(Spot)·DB(Aurora Serverless v2)가 사용량 따라 늘고 줆
 - EKS 컨트롤 플레인·ALB·NAT는 사용량과 상관없이 과금돼서 시연 후 `terraform destroy`
 - 시간 게이트: 11-10 12:00까지 TC-K8S-01·02를 통과 못 하면 같은 매니페스트를 k3s에 올림

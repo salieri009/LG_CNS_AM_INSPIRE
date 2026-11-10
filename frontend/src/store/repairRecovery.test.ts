@@ -43,11 +43,16 @@ describe('작업 재개 시 기록 복원', () => {
       expect(store.getState().history.find(h => h.id === id)?.step).toBe(1);
     }
     await store.getState().submitRecord({ actualCausePartId: store.getState().task!.targetPartId, actualMinutes: 10, stuckStepId: first, moduleReplaced: false, memo: '', memoPublic: false });
-    expect(complete.mock.calls[0][1].stepLogs).toEqual(Object.values(logs));
+    expect(complete.mock.calls[0][1].stepLogs).toEqual([
+      expect.objectContaining({ stepId: first, blocked: true, reason: '부품 고착', elapsedMs: 240000 }),
+      expect.objectContaining({ elapsedMs: 0 }),
+    ]);
+    expect(complete.mock.calls[0][1].stepLogs!.every(l => !('runningSince' in l))).toBe(true);
     expect(store.getState().history.find(h => h.id === id)?.status).toBe('done');
   });
 
   it('다른 차량의 작업을 열어도 원래 작업에 돌아오면 기록이 복원되고 서로 섞이지 않는다', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
     const store = await setup();
     const id = store.getState().liveId!;
     store.getState().markBlocked('공구 접근 어려움');
@@ -66,6 +71,7 @@ describe('작업 재개 시 기록 복원', () => {
   });
 
   it('같은 후보를 다시 열어도 현재 고전압 확인과 막힘 기록을 보존한다', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
     const store = await setup();
     await store.getState().pickCode('P0A3F');
     const part = store.getState().job!.candidates[0].partId;

@@ -121,7 +121,7 @@ class RepairWorkflow {
         }
         for (CompletionRequest.StepLog l : logs) {
             store.saveStepLog(taskOfStep.get(l.stepId()).id(), l.stepId(), Instant.ofEpochMilli(l.startedAt()),
-                    l.endedAt() == null ? null : Instant.ofEpochMilli(l.endedAt()), l.blockedOrFalse(), blankToNull(l.reason()));
+                    l.endedAt() == null ? null : Instant.ofEpochMilli(l.endedAt()), l.blockedOrFalse(), blankToNull(l.reason()), l.elapsedMs());
         }
         // 메모 공개는 명시적 동의가 있을 때만, 그리고 팁이 붙을 단계(막힌 단계)가 있을 때만. 아니면 비공개 메모로 남는다
         String tipId = null;
@@ -157,7 +157,7 @@ class RepairWorkflow {
                 .ifPresent(s -> { throw ApiException.conflict("고전압 확인 기록이 없는 단계를 지나갈 수 없습니다: " + s.order() + "단계"); });
         for (CompletionRequest.StepLog l : logs) {
             store.saveStepLog(taskId, l.stepId(), Instant.ofEpochMilli(l.startedAt()),
-                    l.endedAt() == null ? null : Instant.ofEpochMilli(l.endedAt()), l.blockedOrFalse(), blankToNull(l.reason()));
+                    l.endedAt() == null ? null : Instant.ofEpochMilli(l.endedAt()), l.blockedOrFalse(), blankToNull(l.reason()), l.elapsedMs());
         }
         store.saveCurrentStep(taskId, current.stepId());
         return new ProgressView(taskId, current.stepId(), current.order() - 1, logs.size());

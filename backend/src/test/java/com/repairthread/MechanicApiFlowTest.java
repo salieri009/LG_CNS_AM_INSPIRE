@@ -23,6 +23,7 @@ class MechanicApiFlowTest {
     static final String MX_VIN = "7SAXCBE50NF000000";
 
     @Autowired MockMvc mvc;
+    @Autowired org.springframework.jdbc.core.simple.JdbcClient jdbc;
 
     ResultActions post(String url, String body, String user) throws Exception {
         return mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(url).header("X-User-Id", user)
@@ -119,6 +120,24 @@ class MechanicApiFlowTest {
                 .andExpect(jsonPath("$.duplicated").value(false)).andExpect(jsonPath("$.tipEntryId").doesNotExist());
         post("/api/v1/repair-jobs", "{\"vehicleId\":\"veh-m3-001\",\"dtcCode\":\"B0F71\"}", "tech-flow-c")
                 .andExpect(jsonPath("$.candidates[0].observedRaw.n").value(n));
+    }
+
+    @Test
+    void accumulatedStepTimeIsStoredSeparatelyFromTimestampSpan() throws Exception {
+        String user = "tech-elapsed";
+        String job = newJob("veh-m3-001", "B1A24", user);
+        String task = JsonPath.read(body(post("/api/v1/repair-jobs/" + job + "/tasks", "{\"partId\":\"part-latch-rl\"}", user)), "$.taskId");
+        String log = "{\"stepId\":\"latch-s1\",\"startedAt\":1762736400000,\"endedAt\":1762737360000,\"elapsedMs\":360000}";
+        put("/api/v1/tasks/" + task + "/progress", "{\"currentStepId\":\"latch-s2\",\"stepLogs\":[" + log + "]}", user)
+                .andExpect(status().isOk());
+        org.assertj.core.api.Assertions.assertThat(jdbc.sql("SELECT elapsed_ms FROM record.step_record WHERE task_id = ? AND step_id = 'latch-s1'")
+                .param(task).query(Long.class).single()).isEqualTo(360000L);
+        put("/api/v1/tasks/" + task + "/progress", "{\"currentStepId\":\"latch-s2\",\"stepLogs\":[" + log.replace("360000", "-1") + "]}", user)
+                .andExpect(status().isBadRequest());
+        put("/api/v1/repair-jobs/" + job + "/completion", "{\"actualCausePartId\":\"part-latch-rl\",\"actualMinutes\":16,\"stepLogs\":[" + log + "]}", user)
+                .andExpect(status().isOk());
+        org.assertj.core.api.Assertions.assertThat(jdbc.sql("SELECT elapsed_ms FROM record.step_record WHERE task_id = ? AND step_id = 'latch-s1'")
+                .param(task).query(Long.class).single()).isEqualTo(360000L);
     }
 
     @Test

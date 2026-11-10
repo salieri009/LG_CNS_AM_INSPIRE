@@ -296,6 +296,7 @@ VIN 원문은 저장하지 않고 HMAC 조회 키로 찾음.
 | `memo` | string | | 1000자까지. 항상 비공개로 기록에 저장 |
 | `memoPublic` | boolean | | true이고 `memo`와 `stuckStepId`가 있으면 그 단계의 공개 팁으로도 등록 |
 | `stepLogs[]` | | | 단계별 자동 측정 기록. `stepId`·`startedAt` 필수, `endedAt`은 `startedAt` 이후, `reason` 500자까지 |
+| `stepLogs[].elapsedMs` | | | 선택, 0 이상 정수(ms). 재방문 구간을 합친 실제 작업 시간. `endedAt - startedAt`에는 다른 단계에서 머문 시간이 포함될 수 있으므로 소요 시간은 이 값을 사용한다. 과거 요청/기록은 null |
 
 고전압 검증: 실제 원인 부품의 task(없으면 가장 최근 task)에 확인 안 한 고전압 단계가 있으면 저장하지 않음.
 

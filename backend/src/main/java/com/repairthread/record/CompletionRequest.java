@@ -24,7 +24,8 @@ public record CompletionRequest(
     public boolean memoPublicOrFalse() { return Boolean.TRUE.equals(memoPublic); }
 
     /** 화면이 자동으로 잰 단계 기록 (epoch ms) */
-    public record StepLog(@NotBlank String stepId, @NotNull Long startedAt, Long endedAt, Boolean blocked, @Size(max = 500) String reason) {
+    public record StepLog(@NotBlank String stepId, @NotNull Long startedAt, Long endedAt, Boolean blocked, @Size(max = 500) String reason,
+                          @Min(0) Long elapsedMs) {
         public boolean blockedOrFalse() { return Boolean.TRUE.equals(blocked); }
     }
 }

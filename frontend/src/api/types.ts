@@ -122,11 +122,13 @@ export interface CompletionRequest {
   /** 단계별 기록 (job_step_log): 자동 측정한 시작·끝과 막힘 여부 */
   stepLogs?: StepLog[];
 }
-export interface StepLog { stepId: string; startedAt: number; endedAt?: number; blocked: boolean; reason?: string }
+export interface StepLog { stepId: string; startedAt: number; endedAt?: number; blocked: boolean; reason?: string; elapsedMs?: number }
 /** tipEntryId: 공개 동의한 메모로 만든 팁 (막힌 단계가 있을 때만) */
 export interface CompletionResult { jobId: string; duplicated: boolean; tipEntryId?: string }
 
 export interface PartMetric {
+  /** 시연에서 새로 수집한 유효 막힘 기록 수. 초기 예시에는 단계별 분포가 없다. */
+  stuckSampleN?: number;
   partId: string;
   partName: string;
   profile: string;

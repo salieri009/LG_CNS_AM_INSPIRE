@@ -1,5 +1,6 @@
 import { createStore, useStore } from 'zustand';
 import { api as defaultApi } from '../api';
+import { startStep, stepElapsed, stopStep, type TimedStepLog } from './stepTiming';
 import type { CompletionRequest, DemoVehicle, DtcSuggestion, HistoryEntry, KnowledgeEntry, RepairJob, RepairTask, RepairThreadApi, StepLog, UserProfile, VehicleLookup } from '../api/types';
 
 export type Mode = 'idle' | 'cands' | 'repair' | 'record';
@@ -28,7 +29,7 @@ interface State {
   error: string;
   notice: string;
   /** 단계별 자동 측정·막힘 기록 (job_step_log) */
-  stepLog: Record<string, StepLog>;
+  stepLog: Record<string, TimedStepLog>;
   /** 점검했지만 원인이 아니었던 후보 (공식 순서대로 하나씩 지워 간다) */
   ruledOut: string[];
   /** 이번 작업에서 내가 남긴 팁 */
@@ -37,6 +38,8 @@ interface State {
 interface Actions {
   /** 화면을 열 때 한 번: 프로필·차량 목록·오늘 작업 목록 */
   init(): Promise<void>;
+  pauseTiming(): void;
+  resumeTiming(): void;
   lookup(vin: string): Promise<void>;
   pickCode(code: string): Promise<void>;
   select(index: number): void;
@@ -71,22 +74,24 @@ export const hvCleared = (s: Pick<State, 'task' | 'acked'>) => !!s.task && s.tas
 export function recordDraft(s: Pick<State, 'task' | 'stepLog'>, now: number): { minutes: number; stuckStepId: string | null } {
   const logs = (s.task?.steps ?? []).map(st => s.stepLog[st.stepId]).filter((l): l is StepLog => !!l);
   if (!logs.length) return { minutes: 0, stuckStepId: null };
-  const first = Math.min(...logs.map(l => l.startedAt));
-  const dur = (l: StepLog) => (l.endedAt ?? now) - l.startedAt;
+  const dur = (l: TimedStepLog) => stepElapsed(l, now);
   const blocked = logs.filter(l => l.blocked).at(-1);
   const longest = logs.reduce((a, b) => (dur(b) > dur(a) ? b : a));
-  return { minutes: Math.round((now - first) / 60_000), stuckStepId: (blocked ?? longest).stepId };
+  return { minutes: Math.round(logs.reduce((sum, l) => sum + dur(l), 0) / 60_000), stuckStepId: (blocked ?? longest).stepId };
 }
 /** 좁은 화면(900px 미만)에서는 패널을 하나만 연다 */
 const narrow = () => typeof window !== 'undefined' && window.innerWidth < 900;
 
 export function createRepairStore(api: RepairThreadApi = defaultApi) {
   return createStore<State & Actions>()((set, get) => {
+    let initialized = false;
+    let initializing: Promise<void> | undefined;
     // 같은 탭에서 작업을 오가도 부품별 기록을 보존한다. 서버 진행 저장과는 별개다.
     type Progress = Pick<State, 'step' | 'stepLog' | 'myTips' | 'acked'> & { procedureVersion: string };
     const progress = new Map<string, Progress>();
     const progressKey = (jobId: string, partId: string) => `${jobId}/${partId}`;
     const remember = () => {
+      get().pauseTiming();
       const s = get();
       if (s.task) progress.set(progressKey(s.task.jobId, s.task.targetPartId), {
         step: s.step, stepLog: s.stepLog, myTips: s.myTips, acked: s.acked, procedureVersion: s.task.procedureVersion,
@@ -129,7 +134,7 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
       const item: HistoryItem = { id: history?.id ?? job.jobId, jobId: job.jobId, vin: get().vin ?? '', code: job.dtcCode, partId, partName: task.targetPartName, stepCount: task.steps.length, time: history?.time ?? now(), status: 'live', step };
       const sid = task.steps[step].stepId;
       const stepLog = { ...previous?.stepLog };
-      stepLog[sid] ??= { stepId: sid, startedAt: Date.now(), blocked: false };
+      stepLog[sid] = startStep(sid, stepLog[sid], Date.now());
       set({ task, mode: 'repair', step, acked, liveId: item.id, myTips: previous?.myTips ?? [], stepLog, error: '', panels: { ...get().panels, left: false }, history: [item, ...get().history.filter(h => h.id !== item.id && h.id !== job.jobId)] });
     };
     const trackStep = (step: number) => {
@@ -140,10 +145,26 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
       vehicle: null, vin: null, ...fresh, panels: { left: true, right: !narrow() }, history: [], me: null, vehicles: [], suggestions: [], error: '', notice: '',
 
       async init() {
-        try {
-          const [me, vehicles, history] = await Promise.all([api.getMe(), api.listVehicles(), api.listHistory()]);
-          set({ me, vehicles, history: history.map((h, i) => ({ ...h, id: h.jobId ?? `seed-${i}` })) });
-        } catch (e) { set({ error: (e as Error).message }); }
+        if (initialized) return;
+        if (!initializing) initializing = (async () => {
+          try {
+            const [me, vehicles, history] = await Promise.all([api.getMe(), api.listVehicles(), api.listHistory()]);
+            const local = get().history;
+            const remote = history.map((h, i) => ({ ...h, id: h.jobId ?? `seed-${i}` }));
+            // 첫 조회가 늦어져도 그 사이 시작한 작업은 보존한다. 라우트 재진입은 재초기화하지 않는다.
+            set({ me, vehicles, history: [...local, ...remote.filter(h => !local.some(l => l.id === h.id || (h.jobId && l.jobId === h.jobId)))] });
+            initialized = true;
+          } catch (e) { set({ error: (e as Error).message }); }
+        })();
+        try { await initializing; } finally { initializing = undefined; }
+      },
+      pauseTiming() {
+        const s = get(), sid = s.task?.steps[s.step]?.stepId;
+        if (sid && s.stepLog[sid]) set({ stepLog: { ...s.stepLog, [sid]: stopStep(s.stepLog[sid], Date.now()) } });
+      },
+      resumeTiming() {
+        const s = get(), sid = s.task?.steps[s.step]?.stepId;
+        if (s.mode === 'repair' && sid) set({ stepLog: { ...s.stepLog, [sid]: startStep(sid, s.stepLog[sid], Date.now()) } });
       },
 
       async lookup(vin) {
@@ -152,7 +173,7 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         try {
           await loadVehicle(vin, request);
         }
-        catch (e) { if (request === selection) set({ error: (e as Error).message }); }
+        catch (e) { if (request === selection) { get().resumeTiming(); set({ error: (e as Error).message }); } }
       },
       async pickCode(code) {
         const v = get().vehicle; if (!v || vehicleLoading) return;
@@ -162,7 +183,7 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
           const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCode: code });
           if (request !== selection) return;
           set({ ...fresh, job, mode: 'cands', error: '', notice: '', panels: { left: narrow() ? false : get().panels.left, right: true } });
-        } catch (e) { if (request === selection) set({ error: (e as Error).message }); }
+        } catch (e) { if (request === selection) { get().resumeTiming(); set({ error: (e as Error).message }); } }
       },
       select(index) { set({ selected: index }); },
       async startRepair(partId) {
@@ -171,18 +192,18 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         const request = ++selection;
         try {
           await openTask(job, partId, request);
-        } catch (e) { if (request === selection) set({ error: (e as Error).message }); }
+        } catch (e) { if (request === selection) { get().resumeTiming(); set({ error: (e as Error).message }); } }
       },
       goTo(step) {
-        const s = get(); if (!s.task) return;
+        const s = get(); if (!s.task || s.mode !== 'repair') return;
         if (step > s.step && !canLeave(s)) return;
         const n = Math.max(0, Math.min(s.task.steps.length - 1, step));
         if (n === s.step) return;
         // 떠나는 단계는 끝 시각을, 처음 들어가는 단계는 시작 시각을 자동으로 남긴다
         const now = Date.now(), from = s.task.steps[s.step].stepId, to = s.task.steps[n].stepId;
         const log = { ...s.stepLog };
-        if (log[from]) log[from] = { ...log[from], endedAt: now };
-        log[to] = log[to] ? { ...log[to], endedAt: undefined } : { stepId: to, startedAt: now, blocked: false };
+        if (log[from]) log[from] = stopStep(log[from], now);
+        log[to] = startStep(to, log[to], now);
         set({ step: n, stepLog: log }); trackStep(n);
       },
       next() { get().goTo(get().step + 1); },
@@ -204,7 +225,7 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
       },
       markBlocked(reason) {
         const s = get(); const st = s.task?.steps[s.step]; if (!st) return;
-        const cur = s.stepLog[st.stepId] ?? { stepId: st.stepId, startedAt: Date.now(), blocked: false };
+        const cur = s.stepLog[st.stepId] ?? startStep(st.stepId, undefined, Date.now());
         set({ stepLog: { ...s.stepLog, [st.stepId]: { ...cur, blocked: !!reason, reason: reason ?? undefined } } });
       },
       async addTip(body, isPublic) {
@@ -217,16 +238,21 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
           if (saved) progress.set(key, { ...saved, myTips: [...saved.myTips, k] });
           const current = get().task;
           if (current && progressKey(current.jobId, current.targetPartId) === key) set({ myTips: [...get().myTips, k] });
+          if (request === selection) set({ error: '' });
         }
-        catch (e) { if (request === selection) set({ error: (e as Error).message }); }
+        catch (e) { if (request === selection) set({ error: (e as Error).message }); throw e; }
       },
-      openRecord() { if (hvCleared(get())) set({ mode: 'record', panels: { ...get().panels, right: true } }); },
+      openRecord() { if (hvCleared(get())) { get().pauseTiming(); set({ mode: 'record', panels: { ...get().panels, right: true } }); } },
       async submitRecord(req) {
         const job = get().job; if (!job) return;
         const request = selection;
         const id = get().liveId;
         let res;
-        try { res = await api.completeJob(job.jobId, { ...req, stepLogs: Object.values(get().stepLog) }); }
+        const stepLogs = Object.values(get().stepLog).map(l => {
+          const { runningSince: _running, ...log } = stopStep(l, Date.now());
+          return log;
+        });
+        try { res = await api.completeJob(job.jobId, { ...req, stepLogs }); }
         catch (e) { if (request === selection) set({ error: (e as Error).message }); return; }
         for (const key of progress.keys()) if (key.startsWith(`${job.jobId}/`)) progress.delete(key);
         const history = get().history.map(h => (h.id === id ? { ...h, status: 'done' as const, minutes: req.actualMinutes } : h));
@@ -254,10 +280,10 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
           if (request !== selection) return;
           set({ ...fresh, job, mode: 'cands', error: '', notice: '', panels: { left: narrow() ? false : get().panels.left, right: true } });
           if (h.status !== 'done') await openTask(job, h.partId, request, h);
-        } catch (e) { if (request === selection) set({ error: (e as Error).message }); }
+        } catch (e) { if (request === selection) { get().resumeTiming(); set({ error: (e as Error).message }); } }
       },
       backToCandidates() { remember(); ++selection; vehicleLoading = false; set({ mode: 'cands', task: null, step: 0, acked: {}, liveId: null }); },
-      backToRepair() { set({ mode: 'repair' }); },
+      backToRepair() { set({ mode: 'repair' }); get().resumeTiming(); },
       reset() { remember(); ++selection; vehicleLoading = false; set({ ...fresh }); },
       togglePanel(side) {
         const open = !get().panels[side];

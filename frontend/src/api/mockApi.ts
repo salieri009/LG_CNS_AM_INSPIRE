@@ -20,6 +20,7 @@ interface Shared {
   completed: string[];
   acks: StepAck[];
   knowledge: (KnowledgeEntry & { isPublic: boolean })[];
+  stuckCounts?: Record<string, Record<string, number>>;
 }
 
 const listeners = new Set<() => void>();
@@ -41,6 +42,7 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
   const cases: CaseSeed[] = CASES.map(c => ({ ...c, candidates: c.candidates.map(x => ({ ...x })) }));
   let metrics = METRICS.map(m => ({ ...m }));
   let completed = new Set<string>();
+  let stuckCounts: Record<string, Record<string, number>> = {};
   const acks = new Map<string, StepAck>();
   let knowledge = KNOWLEDGE.map(k => ({ ...k, isPublic: true }));
   const jobs = new Map<string, { vehicleId: string; code: string; vehicle: string }>();
@@ -63,6 +65,7 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
       const s = JSON.parse(raw) as Shared;
       cases.forEach(c => c.candidates.forEach(x => { const v = s.counts[caseKey(c, x.partId)]; if (v) Object.assign(x, v); }));
       metrics = s.metrics; completed = new Set(s.completed); knowledge = s.knowledge;
+      stuckCounts = s.stuckCounts ?? {};
       acks.clear(); s.acks.forEach(a => acks.set(`${a.taskId}/${a.stepId}`, a));
     } catch { /* 깨진 저장값은 무시하고 시드로 동작 */ }
   };
@@ -70,7 +73,7 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
     if (!storage) return;
     const counts: Shared['counts'] = {};
     cases.forEach(c => c.candidates.forEach(x => { counts[caseKey(c, x.partId)] = { count: x.count, n: x.n, agree: x.agree }; }));
-    const s: Shared = { counts, metrics, completed: [...completed], acks: [...acks.values()], knowledge };
+    const s: Shared = { counts, metrics, completed: [...completed], acks: [...acks.values()], knowledge, stuckCounts };
     try { storage.setItem(STORE_KEY, JSON.stringify(s)); } catch { /* 저장 못 해도 이 탭에서는 동작 */ }
     channel?.postMessage('changed');
   };
@@ -171,6 +174,16 @@ export function createMockApi({ delayMs = 250, storage }: { delayMs?: number; st
           m.avgMinutes = Math.round((m.avgMinutes * m.n + req.actualMinutes) / (m.n + 1));
           m.moduleReplaceRate = (m.moduleReplaceRate * m.n + (req.moduleReplaced ? 1 : 0)) / (m.n + 1);
           m.n += 1;
+          // 초기 예시에는 단계별 빈도가 없으므로 새로 수집한 유효 막힘 기록만 집계한다.
+          const procedure = c.procedures.find(p => p.targetPartId === req.actualCausePartId);
+          const stuck = procedure?.steps.find(s => s.stepId === req.stuckStepId);
+          if (stuck && procedure) {
+            const counts = stuckCounts[m.partId] ??= {};
+            counts[stuck.stepId] = (counts[stuck.stepId] ?? 0) + 1;
+            const top = [...procedure.steps].sort((a, b) => (counts[b.stepId] ?? 0) - (counts[a.stepId] ?? 0) || a.order - b.order)[0];
+            m.topStuckStep = `${top.order}단계 ${top.title}`;
+            m.stuckSampleN = Object.values(counts).reduce((sum, n) => sum + n, 0);
+          }
         }
       }
       save();

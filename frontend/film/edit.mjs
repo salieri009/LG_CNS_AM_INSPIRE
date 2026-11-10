@@ -10,8 +10,9 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { SHOTS } from './shots.mjs';
 import { launch, W, H, sleep } from './lib.mjs';
+import { filmPath } from './platform.mjs';
 
-const DIR = new URL('./out/v2/', import.meta.url).pathname, OUT = new URL('./out/', import.meta.url).pathname, CAPS = `${DIR}captions/`;
+const DIR = filmPath('./out/v2/'), OUT = filmPath('./out/'), CAPS = `${DIR}captions/`;
 mkdirSync(CAPS, { recursive: true });
 const ZOOM = 1.45, IN = 0.7, HOLD = 2.2, FAST = 1.25, BEAT = 0.6, XF = BEAT, BAR = BEAT * 4;
 const dur = f => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString());

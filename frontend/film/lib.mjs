@@ -3,17 +3,18 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import puppeteer from 'puppeteer-core';
+import { chromeExecutable, gpuArgs, filmPath } from './platform.mjs';
 
 // BEAT는 화면이 머무는 기본 단위. 애니메이션 속도는 그대로 두고 머무는 시간만 늘려 7분에 맞춘다(2026-11-10)
 export const W = 1600, H = 900, SCALE = 2.4, BEAT = 780;
-export const OUT = new URL('./out/v2/', import.meta.url).pathname;
+export const OUT = filmPath('./out/v2/');
 const OVERLAY = readFileSync(new URL('./overlay.js', import.meta.url), 'utf8');
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 export async function launch() {
   return puppeteer.launch({
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true, defaultViewport: null,
-    args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--hide-scrollbars', `--window-size=${W},${H + 87}`, `--force-device-scale-factor=${SCALE}`, '--no-first-run'],
+    executablePath: chromeExecutable(), headless: true, defaultViewport: null,
+    args: [...gpuArgs(), '--hide-scrollbars', `--window-size=${W},${H + 87}`, `--force-device-scale-factor=${SCALE}`, '--no-first-run'],
   });
 }
 

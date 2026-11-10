@@ -4,14 +4,15 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import puppeteer from 'puppeteer-core';
+import { chromeExecutable, filmPath } from './platform.mjs';
 
 const APP_URL = process.env.FILM_URL ?? 'http://localhost:5180/';
-const OUT = new URL('./out/', import.meta.url).pathname;
+const OUT = filmPath('./out/');
 const W = 1920, H = 1080, BEAT = 500; // 120 BPM
 rmSync(OUT + 'frames', { recursive: true, force: true }); mkdirSync(OUT + 'frames', { recursive: true });
 
 const browser = await puppeteer.launch({
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: chromeExecutable(),
   headless: false,
   defaultViewport: { width: W, height: H, deviceScaleFactor: 1 },
   args: [`--window-size=${W},${H + 120}`, '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--hide-scrollbars', '--no-first-run', '--no-default-browser-check'],

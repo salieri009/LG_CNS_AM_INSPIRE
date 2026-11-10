@@ -2,8 +2,9 @@
 // 실행: node film/probe.mjs   결과: film/out/probe/<설정>.png, 콘솔에 fps
 import { mkdirSync, writeFileSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
+import { chromeExecutable, gpuArgs, filmPath } from './platform.mjs';
 
-const OUT = new URL('./out/probe/', import.meta.url).pathname; mkdirSync(OUT, { recursive: true });
+const OUT = filmPath('./out/probe/'); mkdirSync(OUT, { recursive: true });
 const CONFIGS = [
   { id: 'hl-1600x2.4-png', w: 1600, h: 900, dsf: 2.4, format: 'png', headless: true },
   { id: 'hl-1600x2.4-jpeg100', w: 1600, h: 900, dsf: 2.4, format: 'jpeg', headless: true },
@@ -11,9 +12,9 @@ const CONFIGS = [
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 for (const c of CONFIGS) {
   const browser = await puppeteer.launch({
-    executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: c.headless ?? false,
+    executablePath: chromeExecutable(), headless: c.headless ?? false,
     defaultViewport: { width: c.w, height: c.h, deviceScaleFactor: c.dsf },
-    args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', `--window-size=${c.w},${c.h + 120}`, '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--no-first-run'],
+    args: [...gpuArgs(), `--window-size=${c.w},${c.h + 120}`, '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-background-timer-throttling', '--no-first-run'],
   });
   const page = (await browser.pages())[0];
   await page.goto('http://localhost:5180/', { waitUntil: 'networkidle2' });

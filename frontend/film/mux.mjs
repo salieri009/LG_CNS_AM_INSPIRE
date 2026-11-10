@@ -4,10 +4,11 @@
 //  - 유튜브·발표장 기준 음량(-14 LUFS)으로 맞춤
 // 결과: film/out/cardoc-film.mp4 (원본 화질), film/out/cardoc-film-1080p.mp4 (공유용 1080p)
 import { execFileSync } from 'node:child_process';
+import { filmPath } from './platform.mjs';
 
 const [music, offset = '0'] = process.argv.slice(2);
 if (!music) { console.error('사용법: node film/mux.mjs <음악 파일> [시작 위치 초]'); process.exit(1); }
-const OUT = new URL('./out/', import.meta.url).pathname;
+const OUT = filmPath('./out/');
 const IN = OUT + (process.env.FILM_IN ?? 'cardoc-v2-4k.mp4');
 const dur = Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', IN]).toString());
 const fadeOut = Math.max(0, dur - 3).toFixed(2);

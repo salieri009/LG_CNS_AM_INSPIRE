@@ -122,6 +122,28 @@ class MechanicApiFlowTest {
     }
 
     @Test
+    void highVoltageCompletionRequiresItsOwnTask() throws Exception {
+        String job = newJob("veh-m3-001", "P0A3F", "tech-hv-no-task");
+        String done = "{\"actualCausePartId\":\"part-rdu-resolver\",\"actualMinutes\":100}";
+        // task를 만들지 않은 직접 완료 요청도 고전압 검증을 통과할 수 없다.
+        put("/api/v1/repair-jobs/" + job + "/completion", done, "tech-hv-no-task")
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value(containsString("고전압 확인")));
+        // 거부된 요청은 완료로 저장되지 않아 이후 정상적으로 작업을 시작할 수 있다.
+        post("/api/v1/repair-jobs/" + job + "/tasks", "{\"partId\":\"part-rdu-resolver\"}", "tech-hv-no-task")
+                .andExpect(status().isCreated());
+        put("/api/v1/repair-jobs/" + job + "/completion", done, "tech-hv-no-task")
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void candidateWithoutProcedureCanStillBeRecorded() throws Exception {
+        String job = newJob("veh-m3-001", "B1A24", "tech-no-procedure");
+        put("/api/v1/repair-jobs/" + job + "/completion",
+                "{\"actualCausePartId\":\"part-switch-rl\",\"actualMinutes\":20}", "tech-no-procedure")
+                .andExpect(status().isOk()).andExpect(jsonPath("$.duplicated").value(false));
+    }
+
+    @Test
     void highVoltageStepsNeedServerAck() throws Exception {
         String job = newJob("veh-m3-001", "P0A3F", "tech-hv");
         String task = body(post("/api/v1/repair-jobs/" + job + "/tasks", "{\"partId\":\"part-rdu-resolver\"}", "tech-hv"));

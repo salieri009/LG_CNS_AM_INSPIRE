@@ -5,7 +5,7 @@ import { ManualStrip } from '../components/ManualStrip';
 import { RightPanel } from '../components/RightPanel';
 import { TopBar } from '../components/TopBar';
 import { useRepair } from '../store/useRepairStore';
-import { RepairViewer } from '../viewer/RepairViewer';
+import { Viewer3D } from '../viewer/Viewer3D';
 import { modelFor } from '../viewer/config';
 
 /** 정비사 화면 (A①~A③): 가운데 3D가 화면 전체, 왼쪽 정비사·차량, 오른쪽 진단, 아래 매뉴얼 */
@@ -28,7 +28,7 @@ export function MechanicPage() {
     <div className={cls} style={vars}>
       <div className="glow" aria-hidden="true" />
       <div className="stage">
-        <RepairViewer task={mode === 'repair' || mode === 'record' ? task : null} stepIndex={mode === 'repair' || mode === 'record' ? step : -1} onSelectStep={goTo} candidate={candidate} model={modelFor(vehicle?.model)} />
+        <Viewer3D task={mode === 'repair' || mode === 'record' ? task : null} stepIndex={mode === 'repair' || mode === 'record' ? step : -1} onSelectStep={goTo} candidate={candidate} model={modelFor(vehicle?.model)} />
       </div>
       <TopBar />
       {panels.left && <LeftSidebar />}

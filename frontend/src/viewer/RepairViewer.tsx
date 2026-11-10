@@ -7,7 +7,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { PartBox, RepairTask } from '../api/types';
 import { doorParts, fitVehicle, rigForDoor, type FitOptions } from './geometry';
 import { partState, type PartState } from './partState';
-import { makeXrayMaterial, setRegions, setStrength, type Region } from './xray';
+import { makeXrayMaterial, panelAxis, setRegions, setStrength, type Region } from './xray';
 import { AnimatedPart } from './DoorParts';
 import { DOOR_PARTS, type DoorPartDef } from './doorPartDefs';
 import { PartShapeNode } from './shapes';
@@ -113,12 +113,12 @@ function Scene({ task, stepIndex, onSelectStep, labelRef, candidate, model: pick
     const regions: Region[] = surfaces.map(b => {
       const t = STATE_TINT[partState(b.key, stepIndex, steps, sp.target)];
       const [x, y, z, w, h, d] = b.box;
-      return { min: new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2), color: t.color, amount: t.amount * (t.pulse ? pulse : 1) };
+      return { min: new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2), color: t.color, amount: t.amount * (t.pulse ? pulse : 1), axis: panelAxis([w, h, d]) };
     });
     for (const hi of heat) {
       if (shapeOf(hi.box) !== 'surface') continue;
       const [x, y, z, w, h, d] = hi.box.box;
-      regions.push({ min: new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2), color: HEAT, amount: 0.3 + 0.6 * hi.level });
+      regions.push({ min: new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2), max: new THREE.Vector3(x + w / 2, y + h / 2, z + d / 2), color: HEAT, amount: 0.3 + 0.6 * hi.level, axis: panelAxis([w, h, d]) });
     }
     mats.forEach(mt => setRegions(mt, regions));
     // 도어 부품을 다룰 때만 도어 철판을 밝혀 위치를 알려 준다

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createMockApi } from './mockApi';
-import type { RepairThreadApi } from './types';
+import type { CarDocApi } from './types';
 
 const DEMO_VIN = '5YJ3E1EA0JF000000';
-let api: RepairThreadApi;
+let api: CarDocApi;
 
 beforeEach(() => { api = createMockApi({ delayMs: 0 }); });
 
@@ -24,7 +24,7 @@ describe('mockApi', () => {
 
   it('후보는 공식 순서대로 오고, 한 사례의 후보는 모두 같은 분모(n)를 쓴다', async () => {
     const job = await startJob();
-    expect(job.candidates.map(c => c.officialOrder)).toEqual([1, 2, 3, 4]);
+    expect(job.candidates.map(c => c.officialOrder)).toEqual([1, 2, 3, 4, 5]);
     const ns = new Set(job.candidates.map(c => c.observedRaw.n));
     expect(ns.size).toBe(1);
     expect(job.candidates.every(c => c.observed !== null)).toBe(true);
@@ -143,7 +143,7 @@ describe('mockApi · 여러 케이스', () => {
 });
 
 describe('mockApi · 차종별 절차', () => {
-  let api: RepairThreadApi;
+  let api: CarDocApi;
   beforeEach(() => { api = createMockApi({ delayMs: 0 }); });
 
   it('같은 B0F71이라도 Model X는 Model X 절차(9단계)와 Model X 3D 모델이 온다', async () => {
@@ -173,5 +173,73 @@ describe('mockApi · 차종별 절차', () => {
   it('Model X에 없는 고장코드는 거절한다', async () => {
     const x = await api.lookupVehicle({ vin: '7SAXCBE50NF000000' });
     await expect(api.createRepairJob({ vehicleId: x.vehicleId, dtcCodes: ['B1C12'], symptoms: [] })).rejects.toThrow('등록되지 않은');
+  });
+});
+
+describe('mockApi · 후보 점검 방법', () => {
+  it('모든 차종·코드의 모든 후보에 점검 단계와 정상 기준이 2개 이상 온다', async () => {
+    const api = createMockApi({ delayMs: 0 });
+    for (const vin of ['5YJ3E1EA0JF000000', '7SAXCBE50NF000000']) {
+      const v = await api.lookupVehicle({ vin });
+      for (const code of ['B1A24', 'B1C12', 'B0F71', 'P0A3F', 'B1A3C', 'B1F42']) {
+        const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: [code], symptoms: [] }).catch(() => null);
+        for (const c of job?.candidates ?? []) {
+          expect(c.inspection?.length ?? 0, `${vin} ${code} ${c.partId}`).toBeGreaterThanOrEqual(2);
+          for (const st of c.inspection!) expect(st.pass, c.partId).toBeTruthy();
+        }
+      }
+    }
+  });
+});
+
+describe('mockApi · 고장코드 여러 개·증상', () => {
+  const M3 = '5YJ3E1EA0JF000000';
+  it('코드 두 개를 넣으면 두 코드에 공통인 원인이 맨 위로 오고, 그 원인으로 수리를 시작할 수 있다', async () => {
+    const api = createMockApi({ delayMs: 0 });
+    const v = await api.lookupVehicle({ vin: M3 });
+    const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B0F71', 'B1A24'], symptoms: [] });
+    expect(job.codes.map(c => c.code)).toEqual(['B0F71', 'B1A24']);
+    expect(job.candidates[0].partId).toBe('part-12v');
+    expect(job.candidates[0].codes).toEqual(['B0F71', 'B1A24']);
+    expect(new Set(job.candidates.map(c => c.partId)).size).toBe(job.candidates.length);
+    const task = await api.createTask(job.jobId, 'part-12v');
+    expect(task.steps).toHaveLength(5);
+  });
+  it('코드 하나일 때는 공식 순서를 그대로 지킨다', async () => {
+    const api = createMockApi({ delayMs: 0 });
+    const v = await api.lookupVehicle({ vin: M3 });
+    const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B1A24'], symptoms: [] });
+    expect(job.candidates.map(c => c.officialOrder)).toEqual([...job.candidates.map(c => c.officialOrder)].sort((a, b) => a - b));
+  });
+  it('고른 증상과 맞는 후보에 맞은 증상을 붙인다', async () => {
+    const api = createMockApi({ delayMs: 0 });
+    const v = await api.lookupVehicle({ vin: M3 });
+    const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B1A24'], symptoms: ['버튼 반응 없음'] });
+    expect(job.candidates.find(c => c.partId === 'part-switch-rl')?.symptomMatch).toEqual(['버튼 반응 없음']);
+    expect(job.candidates.find(c => c.partId === 'part-hall-rl')?.symptomMatch).toEqual([]);
+  });
+  it('여러 코드 중 하나라도 이 차종에 없으면 거절한다', async () => {
+    const api = createMockApi({ delayMs: 0 });
+    const v = await api.lookupVehicle({ vin: M3 });
+    await expect(api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B1A24', 'B1F42'], symptoms: [] })).rejects.toThrow('B1F42');
+  });
+});
+
+describe('mockApi · 공장 B②·B③', () => {
+  it('B②: 공장 지표의 부품마다 사양·생산 조건별 평균 시간이 2줄 이상 온다', async () => {
+    const api = createMockApi({ delayMs: 0 });
+    const m = await api.getManufacturerMetrics();
+    for (const p of m.parts) expect(m.variantTimes.filter(v => v.partId === p.partId).length, p.partId).toBeGreaterThanOrEqual(2);
+  });
+  it('B③: 고장코드마다 실제 원인 분포가 오고, 결과를 기록하면 그 원인 건수가 1 늘어난다', async () => {
+    const api = createMockApi({ delayMs: 0 });
+    const before = (await api.getManufacturerMetrics()).causeShares.find(c => c.vehicle === 'Tesla Model 3' && c.code === 'B1A24')!;
+    expect(before.causes.length).toBeGreaterThanOrEqual(2);
+    expect(before.causes.reduce((a, c) => a + c.count, 0)).toBeLessThanOrEqual(before.n);
+    const v = await api.lookupVehicle({ vin: '5YJ3E1EA0JF000000' });
+    const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: ['B1A24'], symptoms: [] });
+    await api.completeJob(job.jobId, { actualCausePartId: 'part-switch-rl', actualMinutes: 30, stuckStepId: null, moduleReplaced: false, memo: '', memoPublic: false });
+    const after = (await api.getManufacturerMetrics()).causeShares.find(c => c.vehicle === 'Tesla Model 3' && c.code === 'B1A24')!;
+    expect(after.causes.find(c => c.partId === 'part-switch-rl')!.count).toBe(before.causes.find(c => c.partId === 'part-switch-rl')!.count + 1);
   });
 });

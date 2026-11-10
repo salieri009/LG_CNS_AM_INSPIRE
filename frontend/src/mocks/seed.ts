@@ -47,6 +47,8 @@ export const MECHANIC = { name: '김 주임', shop: '정비소 #A-1042 (비공�
 
 /** 오늘 작업 목록 시드. step은 멈춘 단계(0부터) */
 export const HISTORY_SEED = [
+  { id: 'h3', vin: '7SAXCBE50NF000000', code: 'B1A24', partId: 'part-mx-fw-latch', time: '13:20', status: 'live' as const, step: 4 },
   { id: 'h1', vin: '5YJ3E1EA0JF000000', code: 'P0A3F', partId: 'part-rdu-resolver', time: '11:15', status: 'live' as const, step: 3 },
+  { id: 'h4', vin: '7SAXCBE50NF000000', code: 'B0F71', partId: 'part-mx-lv', time: '10:30', status: 'done' as const, step: 8, minutes: 61 },
   { id: 'h2', vin: '5YJ3E1EA0JF000000', code: 'B1A24', partId: 'part-latch-rl', time: '09:40', status: 'done' as const, step: 6, minutes: 52 },
 ];

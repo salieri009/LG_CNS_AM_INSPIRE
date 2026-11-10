@@ -13,7 +13,7 @@
 ## Global Constraints
 - 관측 비율은 n ≥ 30일 때만 분자·n과 함께 표시, 미만은 "참고용". 후보는 공식 점검 순서로 정렬
 - 원인 확률·시간·팁·VIN은 예시 데이터로 표시. 절차·토크·그림은 Tesla Model 3 Service Manual 출처
-- AI 없음, 백엔드 없음(목 API). API 인터페이스(`RepairThreadApi`)는 유지
+- AI 없음, 백엔드 없음(목 API). API 인터페이스(`CarDocApi`)는 유지
 
 ## Review Focus
 - 대기 화면에서 도어 부품이 미리 보이면 안 됨 → 부품은 후보 화면부터

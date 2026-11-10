@@ -198,3 +198,55 @@
 .cands li.out { opacity: .5; } .cands li.out .name { text-decoration: line-through; }
 .record .after { margin: 0; padding: 10px 12px; border: 1px solid var(--hv); border-radius: 10px; display: grid; gap: 8px; }
 .record .after legend { padding: 0 6px; color: var(--hv); font-size: 12px; }
+
+/* 후보 점검 */
+.inspect { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 8px; }
+.inspect-h { margin: 0; color: var(--fg); font-size: 13px; font-weight: 500; } .inspect-h small { color: var(--dim); font-weight: 400; margin-left: 6px; }
+.inspect ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.inspect li { display: grid; gap: 2px; }
+.inspect label { display: flex; gap: 8px; align-items: flex-start; color: var(--fg); font-size: 13px; }
+.inspect li span { padding-left: 24px; font-size: 12px; color: var(--muted); }
+.inspect .verdict { display: flex; gap: 6px; flex-wrap: wrap; }
+.tag.confirmed { color: var(--target); border-color: var(--target); }
+.cands li.cause { border-color: var(--target); }
+
+/* 고장코드 여러 개·증상 */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line-2); background: none; border-radius: 999px; padding: 5px 11px; font-size: 12px; color: var(--muted); }
+.chip:hover { color: var(--fg); border-color: var(--fg); }
+.chip[aria-pressed="true"] { color: var(--bg); background: var(--fg); border-color: var(--fg); }
+.code-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.code-list li { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: start; gap: 0 8px; }
+.code-list li p { grid-column: 1; margin: 2px 0 0; }
+.code-list .link { grid-row: 1; grid-column: 2; }
+.add-code { display: grid; gap: 4px; margin-top: 10px; font-size: 11px; color: var(--dim); }
+.add-code select { padding: 7px 9px; background: var(--bg); color: var(--fg); border: 1px solid var(--line-2); border-radius: 9px; font: inherit; font-size: 12px; }
+.code-card .label.sub { margin: 12px 0 6px; }
+.tag.common { color: var(--target); border-color: var(--target); }
+.tag.match { color: var(--fg); border-color: var(--line-2); }
+.codes li.dim { opacity: .45; }
+.meta { flex-wrap: wrap; }
+
+/* 공장 보기 전환 · B②·B③ */
+.seg { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line-2); border-radius: 999px; width: fit-content; margin-bottom: 10px; }
+.seg button { border: 0; background: none; border-radius: 999px; padding: 6px 12px; font-size: 12px; color: var(--muted); }
+.seg button[aria-selected="true"] { background: var(--fg); color: var(--bg); }
+.vrows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; width: 100%; }
+.vrows li { display: grid; gap: 4px; } .vrows p { margin: 0; font-size: 12px; color: var(--fg); } .vrows small { color: var(--muted); font-size: 11px; }
+.cluster { margin: 0; padding: 10px 12px; border: 1px solid var(--hv); border-radius: 10px; font-size: 12px; color: var(--fg); line-height: 1.55; }
+.cluster b { display: block; color: var(--hv); font-weight: 500; margin-bottom: 2px; }
+
+/* 결과 기록 직후 */
+.record-result { border: 1px solid var(--ok); border-radius: 12px; padding: 14px; display: grid; gap: 8px; animation: rr-in .5s ease-out; }
+.record-result .label { color: var(--ok); }
+.rr-name { margin: 0; font-weight: 500; }
+.rr-nums { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.rr-nums strong { color: var(--fg); font-size: 18px; font-weight: 500; animation: rr-pop .9s .3s both; }
+.record-result .pill { justify-self: start; text-decoration: none; }
+.hist .veh { display: block; color: var(--dim); font-size: 11px; }
+@keyframes rr-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes rr-pop { 0% { color: var(--ok); transform: scale(1.15); } 100% { color: var(--fg); transform: none; } }
+@media (prefers-reduced-motion: reduce) { .record-result, .rr-nums strong { animation: none; } }
+.viewer-msg { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 6px; text-align: center; }
+.viewer-msg p { margin: 0; }
+.img-off { display: grid; place-items: center; aspect-ratio: 2 / 1; padding: 12px; font-size: 11px; color: var(--muted); background: rgba(255,255,255,.04); text-align: center; flex: none; }

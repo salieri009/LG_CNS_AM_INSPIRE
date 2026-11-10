@@ -4,6 +4,7 @@ import type { KnowledgeEntry } from '../api/types';
 import { canLeave, repairStore, useRepair } from '../store/useRepairStore';
 import { FASTENER_LABEL } from './labels';
 import { StepLogBar } from './StepLogBar';
+import { PUBLIC_BUILD } from '../config/publicBuild';
 
 
 /** 아래 수리 매뉴얼: 단계마다 매뉴얼 실사 그림 카드. 지금 단계 카드로 자동 스크롤 */
@@ -78,7 +79,9 @@ export function ManualStrip({ height, onResize, collapsed, onCollapse }: Props) 
       <div className="strip" ref={strip}>
         {task.steps.map((st, i) => (
           <button key={st.stepId} className={`card ${i < step ? 'done' : ''} ${st.requiresHvAck ? 'hv' : ''}`} aria-current={i === step ? 'step' : undefined} onClick={() => s.goTo(i)}>
-            {st.fallbackImage && <img src={st.fallbackImage} alt={`${i + 1}단계 ${st.title} 매뉴얼 그림`} loading="lazy" />}
+            {st.fallbackImage && (PUBLIC_BUILD
+              ? <span className="img-off">매뉴얼 그림은 공개판에서 원문 링크로 봅니다</span>
+              : <img src={st.fallbackImage} alt={`${i + 1}단계 ${st.title} 매뉴얼 그림`} loading="lazy" />)}
             <div className="card-b">
               <p className="card-t"><b>{String(i + 1).padStart(2, '0')}</b> {st.title}</p>
               <p className="tags"><span className="tag">{FASTENER_LABEL[st.fastenerType]}</span><span className="tag">{st.minutes}분</span>{st.torque && <span className="tag">{st.torque}</span>}</p>

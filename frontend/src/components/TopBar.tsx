@@ -29,7 +29,7 @@ export function TopBar({ showMechanicTools = true }: { showMechanicTools?: boole
       {showMechanicTools && (
         <button className="icon-btn" aria-label="정비사·차량 패널 열고 닫기" aria-expanded={panels.left} onClick={() => togglePanel('left')}><PanelIcon side="left" /></button>
       )}
-      <span className="logo"><i />REPAIR THREAD</span>
+      <span className="logo"><i />CARDOC</span>
       <nav className="tabs">
         <NavLink to="/" end>정비 진단</NavLink>
         <NavLink to="/factory">공장·설계</NavLink>

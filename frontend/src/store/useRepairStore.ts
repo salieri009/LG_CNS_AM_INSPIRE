@@ -1,11 +1,11 @@
 import { createStore, useStore } from 'zustand';
 import { api as defaultApi } from '../api/mockApi';
-import type { CompletionRequest, KnowledgeEntry, RepairJob, RepairTask, RepairThreadApi, StepLog, VehicleLookup } from '../api/types';
+import type { CompletionRequest, KnowledgeEntry, RepairJob, RepairTask, CarDocApi, StepLog, VehicleLookup } from '../api/types';
 import { HISTORY_SEED } from '../mocks/seed';
 
 export type Mode = 'idle' | 'cands' | 'repair' | 'record';
 /** 오늘 작업 기록. vin으로 어느 차의 작업인지 구분한다 (같은 고장코드가 차종마다 다르다) */
-export interface HistoryItem { id: string; vin: string; code: string; partId: string; time: string; status: 'live' | 'done'; step: number; minutes?: number }
+export interface HistoryItem { id: string; vin: string; code: string; /** 함께 진단한 코드 전부 */ codes?: string[]; /** 수리 절차 전체 단계 수 */ totalSteps?: number; partId: string; time: string; status: 'live' | 'done'; step: number; minutes?: number }
 
 interface State {
   vehicle: VehicleLookup | null;
@@ -24,8 +24,14 @@ interface State {
   liveId: string | null;
   error: string;
   notice: string;
+  /** 방금 기록한 결과가 원인 통계를 어떻게 바꿨는지 (데모 루프의 n 48 → 49 순간) */
+  lastRecord: { code: string; partName: string; before: { count: number; n: number }; after: { count: number; n: number } } | null;
   /** 단계별 자동 측정·막힘 기록 (job_step_log) */
   stepLog: Record<string, StepLog>;
+  /** 접수 때 들은 증상 (진단 전에도 골라 둘 수 있다) */
+  symptoms: string[];
+  /** 점검해서 원인으로 확정한 후보 */
+  confirmed: string | null;
   /** 점검했지만 원인이 아니었던 후보 (공식 순서대로 하나씩 지워 간다) */
   ruledOut: string[];
   /** 이번 작업에서 내가 남긴 팁 */
@@ -34,6 +40,9 @@ interface State {
 interface Actions {
   lookup(vin: string): Promise<void>;
   pickCode(code: string): Promise<void>;
+  addCode(code: string): Promise<void>;
+  removeCode(code: string): Promise<void>;
+  toggleSymptom(symptom: string): Promise<void>;
   select(index: number): void;
   startRepair(partId: string): Promise<void>;
   goTo(step: number): void;
@@ -43,6 +52,7 @@ interface Actions {
   openRecord(): void;
   markBlocked(reason: string | null): void;
   ruleOut(partId: string): void;
+  confirmCause(partId: string): void;
   addTip(body: string, isPublic: boolean): Promise<void>;
   submitRecord(req: CompletionRequest): Promise<void>;
   resume(historyId: string): Promise<void>;
@@ -52,7 +62,7 @@ interface Actions {
   togglePanel(side: 'left' | 'right'): void;
 }
 
-const fresh = { job: null, task: null, mode: 'idle' as Mode, selected: 0, step: 0, acked: {}, liveId: null, stepLog: {} as Record<string, StepLog>, myTips: [] as KnowledgeEntry[], ruledOut: [] as string[] };
+const fresh = { job: null, task: null, mode: 'idle' as Mode, selected: 0, step: 0, acked: {}, liveId: null, stepLog: {} as Record<string, StepLog>, myTips: [] as KnowledgeEntry[], ruledOut: [] as string[], confirmed: null as string | null };
 const now = () => new Date().toTimeString().slice(0, 5);
 
 /** 다음 단계로 넘어갈 수 있는지. 고전압 확인이 필요한 단계는 확인 전에 지나갈 수 없다 (README A③) */
@@ -75,36 +85,63 @@ export function recordDraft(s: Pick<State, 'task' | 'stepLog'>, now: number): { 
 /** 좁은 화면(900px 미만)에서는 패널을 하나만 연다 */
 const narrow = () => typeof window !== 'undefined' && window.innerWidth < 900;
 
-export function createRepairStore(api: RepairThreadApi = defaultApi) {
+export function createRepairStore(api: CarDocApi = defaultApi) {
   return createStore<State & Actions>()((set, get) => {
     const trackStep = (step: number) => {
       const id = get().liveId; if (!id) return;
       set({ history: get().history.map(h => (h.id === id ? { ...h, step } : h)) });
     };
+    // 코드나 증상이 바뀌면 진단을 다시 만든다. 이미 점검한 결과(원인 아님·확정)는 남은 후보에 한해 유지한다
+    const rebuild = async (codes: string[], symptoms: string[]) => {
+      const s = get(); if (!s.vehicle || !s.job) return;
+      try {
+        const job = await api.createRepairJob({ vehicleId: s.vehicle.vehicleId, dtcCodes: codes, symptoms });
+        // 기다리는 사이 진단이 취소되거나 수리로 넘어갔으면 늦게 온 결과는 버린다. 그사이 누른 점검 결과는 지금 상태에서 다시 읽는다
+        const cur = get();
+        if (cur.mode !== 'cands' || cur.job?.jobId !== s.job.jobId) return;
+        const ids = new Set(job.candidates.map(c => c.partId));
+        const keep = cur.job?.candidates[cur.selected]?.partId;
+        set({ job, error: '', ruledOut: cur.ruledOut.filter(x => ids.has(x)), confirmed: cur.confirmed && ids.has(cur.confirmed) ? cur.confirmed : null, selected: Math.max(0, job.candidates.findIndex(c => c.partId === keep)) });
+      } catch (e) { set({ error: (e as Error).message }); }
+    };
     return {
-      vehicle: null, vin: null, ...fresh, panels: { left: true, right: !narrow() }, history: HISTORY_SEED.map(h => ({ ...h })), error: '', notice: '',
+      vehicle: null, vin: null, ...fresh, panels: { left: true, right: !narrow() }, history: HISTORY_SEED.map(h => ({ ...h })), symptoms: [], error: '', notice: '', lastRecord: null,
 
       async lookup(vin) {
         try {
           const vehicle = await api.lookupVehicle({ vin });
           // 좁은 화면에서는 차를 고르면 고장코드 목록이 있는 오른쪽 패널로 넘어간다
-          set({ ...fresh, error: '', notice: '', vehicle, vin: vin.trim().toUpperCase(), ...(narrow() ? { panels: { left: false, right: true } } : {}) });
+          set({ ...fresh, symptoms: [], error: '', notice: '', lastRecord: null, vehicle, vin: vin.trim().toUpperCase(), ...(narrow() ? { panels: { left: false, right: true } } : {}) });
         }
         catch (e) { set({ error: (e as Error).message }); }
       },
       async pickCode(code) {
         const v = get().vehicle; if (!v) return;
         try {
-          const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: [code], symptoms: [] });
-          set({ ...fresh, job, mode: 'cands', error: '', notice: '', panels: { left: narrow() ? false : get().panels.left, right: true } });
+          const job = await api.createRepairJob({ vehicleId: v.vehicleId, dtcCodes: [code], symptoms: get().symptoms });
+          set({ ...fresh, job, mode: 'cands', error: '', notice: '', lastRecord: null, panels: { left: narrow() ? false : get().panels.left, right: true } });
         } catch (e) { set({ error: (e as Error).message }); }
+      },
+      async addCode(code) {
+        const j = get().job; if (!j || j.codes.some(c => c.code === code)) return;
+        await rebuild([...j.codes.map(c => c.code), code], get().symptoms);
+      },
+      async removeCode(code) {
+        const j = get().job; if (!j || j.codes.length < 2) return;
+        await rebuild(j.codes.map(c => c.code).filter(c => c !== code), get().symptoms);
+      },
+      async toggleSymptom(symptom) {
+        const cur = get().symptoms;
+        const symptoms = cur.includes(symptom) ? cur.filter(x => x !== symptom) : [...cur, symptom];
+        set({ symptoms });
+        const j = get().job; if (j && get().mode === 'cands') await rebuild(j.codes.map(c => c.code), symptoms);
       },
       select(index) { set({ selected: index }); },
       async startRepair(partId) {
         const job = get().job; if (!job) return;
         try {
           const task = await api.createTask(job.jobId, partId);
-          const item: HistoryItem = { id: `h-${task.taskId}`, vin: get().vin ?? '', code: job.dtcCode, partId, time: now(), status: 'live', step: 0 };
+          const item: HistoryItem = { id: `h-${task.taskId}`, vin: get().vin ?? '', code: job.dtcCode, codes: job.codes.map(c => c.code), totalSteps: task.steps.length, partId, time: now(), status: 'live', step: 0 };
           // 수리 중에는 3D와 매뉴얼에 자리를 주려고 왼쪽 패널을 접는다
           set({ task, mode: 'repair', step: 0, acked: {}, liveId: item.id, myTips: [], stepLog: { [task.steps[0].stepId]: { stepId: task.steps[0].stepId, startedAt: Date.now(), blocked: false } }, panels: { ...get().panels, left: false }, history: [item, ...get().history.filter(h => h.id !== item.id)] });
         } catch (e) { set({ error: (e as Error).message }); }
@@ -134,7 +171,12 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         if (s.ruledOut.includes(partId)) { set({ ruledOut: s.ruledOut.filter(x => x !== partId) }); return; }
         const ruledOut = [...s.ruledOut, partId];
         const next = s.job.candidates.findIndex(c => !ruledOut.includes(c.partId));
-        set({ ruledOut, selected: next >= 0 ? next : s.selected });
+        set({ ruledOut, selected: next >= 0 ? next : s.selected, confirmed: s.confirmed === partId ? null : s.confirmed });
+      },
+      confirmCause(partId) {
+        const s = get(); if (!s.job) return;
+        const i = s.job.candidates.findIndex(c => c.partId === partId); if (i < 0) return;
+        set({ confirmed: partId, selected: i, ruledOut: s.ruledOut.filter(x => x !== partId) });
       },
       markBlocked(reason) {
         const s = get(); const st = s.task?.steps[s.step]; if (!st) return;
@@ -153,11 +195,13 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         try { res = await api.completeJob(job.jobId, { ...req, stepLogs: Object.values(get().stepLog) }); }
         catch (e) { set({ error: (e as Error).message }); return; }
         const id = get().liveId;
+        const cand = job.candidates.find(c => c.partId === req.actualCausePartId);
+        const lastRecord = !res.duplicated && cand ? { code: job.dtcCode, partName: cand.partName, before: cand.observedRaw, after: { count: cand.observedRaw.count + 1, n: cand.observedRaw.n + 1 } } : null;
         const notice = res.duplicated ? '이미 기록된 작업입니다.'
           : req.actualCausePartId ? `기록했습니다. 같은 사양의 원인 통계가 n=${job.candidates[0].observedRaw.n + 1}건 기준으로 다시 계산됐습니다.`
             : '기록했습니다. 원인 미확인이라 원인 통계에는 넣지 않았습니다.';
         set({
-          ...fresh,
+          ...fresh, lastRecord,
           history: get().history.map(h => (h.id === id ? { ...h, status: 'done' as const, minutes: req.actualMinutes } : h)),
           error: '', notice,
         });
@@ -167,7 +211,10 @@ export function createRepairStore(api: RepairThreadApi = defaultApi) {
         // 기록에 남은 차량으로 다시 연다. 지금 다른 차를 고른 상태여도 그 차로 바꾼다
         if (get().vin !== h.vin) await get().lookup(h.vin);
         if (get().vin !== h.vin) return;
-        await get().pickCode(h.code);
+        // 코드 여러 개로 시작한 작업은 같은 코드 묶음으로 다시 연다
+        const [first, ...rest] = h.codes?.length ? h.codes : [h.code];
+        await get().pickCode(first);
+        for (const c of rest) await get().addCode(c);
         if (h.status === 'done') return;
         await get().startRepair(h.partId);
         const t = get().task; if (!t) return;

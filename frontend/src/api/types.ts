@@ -28,6 +28,8 @@ export interface PartBox {
   outline?: [number, number][];
 }
 export type PartShape = 'surface' | 'panel' | 'tub' | 'module' | 'battery' | 'connector' | 'bolts' | 'clip' | 'drum' | 'harness' | 'wiper' | 'regulator' | 'latch';
+/** 후보 점검 단계: 무엇을 하고, 정상이면 어떤 결과인지 */
+export interface InspectionStep { title: string; pass: string }
 export interface ProcedureSummary { steps: number; minutes: number; requiresHv: boolean; heroImage?: string }
 export interface Candidate {
   partId: string;
@@ -45,6 +47,12 @@ export interface Candidate {
   agree: number;
   /** 시연 범위에 절차가 있는 후보만 있음 */
   procedure?: ProcedureSummary;
+  /** 이 후보가 나온 고장코드들 (둘 이상이면 공통 원인) */
+  codes: string[];
+  /** 고른 증상 중 이 후보와 맞는 것 */
+  symptomMatch: string[];
+  /** 이 후보가 원인인지 가리는 점검 단계 (예시) */
+  inspection?: InspectionStep[];
   /** n이 표시 기준(30) 미만이면 null. 관측 비율이지 고장 발생률이 아님 */
   observed: ObservedRatio | null;
   /** 30건 미만이라도 참고용으로 보여 줄 원 데이터 */
@@ -55,6 +63,9 @@ export interface RepairJob {
   vehicleId: string;
   dtcCode: string;
   dtcDescription: string;
+  /** 함께 넣은 고장코드 전부 (첫 번째가 dtcCode) */
+  codes: { code: string; description: string }[];
+  symptoms: string[];
   candidates: Candidate[];
 }
 
@@ -127,9 +138,18 @@ export interface PartMetric {
   topStuckStep: string;
   n: number;
 }
-export interface ManufacturerMetrics { updatedAt: string; parts: PartMetric[] }
+/** B② 같은 부품의 사양·생산 조건별 평균 시간 */
+export interface VariantTime { partId: string; variant: string; period: string; line: string; avgMinutes: number; n: number }
+/** B③ 고장코드별 실제 원인 분포 (n은 원인이 확인된 건수) */
+export interface CauseShare {
+  vehicle: string; code: string; description: string; n: number;
+  causes: { partId: string; partName: string; count: number }[];
+  /** 원인이 특정 사양·생산 시기에 몰린 경우 */
+  cluster?: { partId: string; where: string; share: number; note: string };
+}
+export interface ManufacturerMetrics { updatedAt: string; parts: PartMetric[]; variantTimes: VariantTime[]; causeShares: CauseShare[] }
 
-export interface RepairThreadApi {
+export interface CarDocApi {
   lookupVehicle(req: VehicleLookupRequest): Promise<VehicleLookup>;
   createRepairJob(req: CreateRepairJobRequest): Promise<RepairJob>;
   createTask(jobId: string, partId: string): Promise<RepairTask>;

@@ -73,7 +73,7 @@ describe('repair store · 기록과 이어하기', () => {
   });
 
   it('진행 중 작업을 이어하면 그 코드·원인의 멈춘 단계부터 열린다', async () => {
-    const live = store.getState().history.find(h => h.status === 'live')!;
+    const live = store.getState().history.find(h => h.status === 'live' && h.vin === '5YJ3E1EA0JF000000')!;
     await store.getState().resume(live.id);
     const s = store.getState();
     expect(s.mode).toBe('repair');
@@ -111,7 +111,7 @@ describe('repair store · 리뷰 반영 (차종·고전압·원인 미확인)', 
 
   it('다른 차를 고른 상태에서 기록을 열면 그 기록의 차량과 사례로 바뀐다', async () => {
     await store.getState().lookup(MX);
-    const done = store.getState().history.find(h => h.status === 'done')!;
+    const done = store.getState().history.find(h => h.status === 'done' && h.vin === '5YJ3E1EA0JF000000')!;
     await store.getState().resume(done.id);
     const s = store.getState();
     expect(s.vehicle?.model).toBe('Tesla Model 3');
@@ -121,7 +121,7 @@ describe('repair store · 리뷰 반영 (차종·고전압·원인 미확인)', 
 
   it('고전압 단계 뒤에서 멈춘 작업을 이어하면 확인 기록이 되살아나 결과를 저장할 수 있다', async () => {
     await store.getState().lookup(MX);
-    const live = store.getState().history.find(h => h.status === 'live')!;
+    const live = store.getState().history.find(h => h.status === 'live' && h.vin === '5YJ3E1EA0JF000000')!;
     await store.getState().resume(live.id);
     const s = store.getState();
     expect(s.vehicle?.model).toBe('Tesla Model 3');
@@ -209,5 +209,108 @@ describe('repair store · 공식 순서대로 점검', () => {
     store.getState().ruleOut(store.getState().job!.candidates[0].partId);
     await store.getState().pickCode('B1C12');
     expect(store.getState().ruledOut).toEqual([]);
+  });
+});
+
+describe('repair store · 후보 점검 결과', () => {
+  it('점검 결과 이상이 있으면 그 후보를 원인으로 확정하고, 다른 코드를 고르면 풀린다', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    const c2 = store.getState().job!.candidates[1];
+    store.getState().confirmCause(c2.partId);
+    expect(store.getState().confirmed).toBe(c2.partId);
+    expect(store.getState().job!.candidates[store.getState().selected].partId).toBe(c2.partId);
+    await store.getState().pickCode('B1C12');
+    expect(store.getState().confirmed).toBeNull();
+  });
+  it('확정한 후보를 원인 아님으로 바꾸면 확정이 풀린다', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    const c1 = store.getState().job!.candidates[0];
+    store.getState().confirmCause(c1.partId);
+    store.getState().ruleOut(c1.partId);
+    expect(store.getState().confirmed).toBeNull();
+  });
+});
+
+describe('repair store · 코드 추가·증상', () => {
+  it('진단 중 코드를 추가하면 후보가 합쳐지고, 빼면 원래대로 돌아온다 (마지막 코드는 못 뺀다)', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    await store.getState().addCode('B0F71');
+    expect(store.getState().job!.codes.map(c => c.code)).toEqual(['B1A24', 'B0F71']);
+    expect(store.getState().job!.candidates[0].codes).toHaveLength(2);
+    await store.getState().removeCode('B0F71');
+    expect(store.getState().job!.codes.map(c => c.code)).toEqual(['B1A24']);
+    await store.getState().removeCode('B1A24');
+    expect(store.getState().job!.codes.map(c => c.code)).toEqual(['B1A24']);
+  });
+  it('증상을 고르면 진단 중인 후보에 맞는 증상이 붙고, 진단 전에도 골라 둘 수 있다', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().toggleSymptom('버튼 반응 없음');
+    expect(store.getState().symptoms).toEqual(['버튼 반응 없음']);
+    await store.getState().pickCode('B1A24');
+    expect(store.getState().job!.candidates.find(c => c.partId === 'part-switch-rl')!.symptomMatch).toEqual(['버튼 반응 없음']);
+    await store.getState().toggleSymptom('버튼 반응 없음');
+    expect(store.getState().job!.candidates.find(c => c.partId === 'part-switch-rl')!.symptomMatch).toEqual([]);
+  });
+  it('다른 차량을 고르면 골라 둔 증상이 비워진다', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().toggleSymptom('문이 안 열림');
+    await store.getState().lookup('7SAXCBE50NF000000');
+    expect(store.getState().symptoms).toEqual([]);
+  });
+});
+
+describe('repair store · 시연 완성도', () => {
+  it('결과를 기록하면 그 원인의 관측 수치가 전후로 남는다 (데모 루프의 n 48 → 49 순간)', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    const c = store.getState().job!.candidates[0];
+    await store.getState().startRepair(c.partId);
+    await store.getState().submitRecord({ actualCausePartId: c.partId, actualMinutes: 50, stuckStepId: null, moduleReplaced: false, memo: '', memoPublic: false });
+    expect(store.getState().lastRecord).toMatchObject({ code: 'B1A24', partName: c.partName, before: c.observedRaw, after: { count: c.observedRaw.count + 1, n: c.observedRaw.n + 1 } });
+  });
+  it('Model X 작업 기록을 이어하면 Model X 차량으로 열린다', async () => {
+    const h = store.getState().history.find(x => x.vin === '7SAXCBE50NF000000' && x.status === 'live')!;
+    expect(h).toBeDefined();
+    await store.getState().resume(h.id);
+    expect(store.getState().vehicle?.model).toBe('Tesla Model X');
+    expect(store.getState().task?.model.assetUrl).toContain('model-x');
+  });
+});
+
+describe('repair store · 검토에서 나온 경쟁·이어하기 문제', () => {
+  it('증상을 바꾸는 중에 누른 원인 아님은 다시 만든 진단에도 남는다', async () => {
+    const slow = createRepairStore(createMockApi({ delayMs: 30 }));
+    await slow.getState().lookup('5YJ3E1EA0JF000000');
+    await slow.getState().pickCode('B1A24');
+    const id = slow.getState().job!.candidates[0].partId;
+    const p = slow.getState().toggleSymptom('문이 안 열림');
+    slow.getState().ruleOut(id);
+    await p;
+    expect(slow.getState().ruledOut).toContain(id);
+  });
+  it('다시 만드는 사이 진단을 취소하면 늦게 온 결과가 화면을 되살리지 않는다', async () => {
+    const slow = createRepairStore(createMockApi({ delayMs: 30 }));
+    await slow.getState().lookup('5YJ3E1EA0JF000000');
+    await slow.getState().pickCode('B1A24');
+    const p = slow.getState().addCode('B0F71');
+    slow.getState().reset();
+    await p;
+    expect(slow.getState().job).toBeNull();
+    expect(slow.getState().mode).toBe('idle');
+  });
+  it('코드 두 개로 시작한 작업도 기록에 전체 단계 수가 남고, 이어하면 같은 코드 묶음으로 열린다', async () => {
+    await store.getState().lookup('5YJ3E1EA0JF000000');
+    await store.getState().pickCode('B1A24');
+    await store.getState().addCode('B1C12');
+    await store.getState().startRepair('part-headlight-lh');
+    const h = store.getState().history[0];
+    expect(h.totalSteps).toBe(store.getState().task!.steps.length);
+    store.getState().reset();
+    await store.getState().resume(h.id);
+    expect(store.getState().task?.targetPartId).toBe('part-headlight-lh');
+    expect(store.getState().job!.codes.map(c => c.code)).toEqual(['B1A24', 'B1C12']);
   });
 });
